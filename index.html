@@ -66,13 +66,12 @@
         <span id="toast-msg">請完整選擇年級、班別及班號！</span>
     </div>
 
-    <!-- Storage Warning Banner (Shows if opened in restricted iframe preview) -->
+    <!-- Sandbox Warning Banner -->
     <div id="sandbox-warning-banner" class="hidden fixed top-0 left-0 right-0 z-50 bg-amber-500 text-amber-950 px-4 py-2 text-xs md:text-sm font-bold text-center shadow-lg flex items-center justify-center gap-2">
         <i class="fa-solid fa-triangle-exclamation text-base"></i>
-        <span>警告：正在 Google Drive/Classroom 預覽模式中開啟！請使用【發佈網址連結】開啟，否則排行榜紀錄無法跨次儲存。</span>
+        <span>警告：正在預覽模式中開啟！請使用發佈連結開啟以確保排行榜正常同步。</span>
     </div>
 
-    <!-- Teacher Authentication Modal -->
     <div id="teacher-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl space-y-4">
             <div class="text-4xl">🍎</div>
@@ -182,9 +181,9 @@
             <div class="flex items-center justify-center gap-2 mt-1">
                 <p class="text-gray-600 font-bold text-xs md:text-sm">1位數乘法競速戰 (包括 0 的乘法)</p>
                 <!-- Cloud Status Indicator -->
-                <span id="cloud-status-badge" class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 雲端連線中
-                </span>
+                <button onclick="manualCloudSync()" id="cloud-status-badge" class="text-[10px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 cursor-pointer transition">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 雲端連線中 (點擊同步)
+                </button>
             </div>
         </div>
 
@@ -279,9 +278,14 @@
                     <h3 class="font-bold text-gray-700 text-xs md:text-sm flex items-center gap-1.5">
                         <i class="fa-solid fa-trophy text-amber-500"></i> 排行榜榜首 (Top 10)
                     </h3>
-                    <button onclick="showLeaderboardScreen()" class="text-xs text-indigo-600 font-bold hover:underline">
-                        查看分級完整榜單 &rarr;
-                    </button>
+                    <div class="flex gap-2 items-center">
+                        <button onclick="manualCloudSync()" class="text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 px-2 py-0.5 rounded-md font-bold transition">
+                            <i class="fa-solid fa-rotate mr-0.5"></i> 刷新雲端
+                        </button>
+                        <button onclick="showLeaderboardScreen()" class="text-xs text-indigo-600 font-bold hover:underline">
+                            完整榜單 &rarr;
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Grade Filter Tabs for Mini Leaderboard -->
@@ -415,15 +419,20 @@
             </div>
         </div>
 
-        <!-- LEADERBOARD SCREEN (WITH GRADE FILTERS AND TOP 10) -->
+        <!-- LEADERBOARD SCREEN -->
         <div id="screen-leaderboard" class="hidden space-y-3">
             <div class="flex items-center justify-between border-b pb-2">
                 <h2 class="text-xl md:text-2xl font-black text-gray-800 flex items-center gap-2">
                     <i class="fa-solid fa-trophy text-amber-500"></i> 極速乘數榜 (Top 10)
                 </h2>
-                <button onclick="showStartScreen()" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1">
-                    <i class="fa-solid fa-house"></i> 返回主頁
-                </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="manualCloudSync()" class="text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 px-2.5 py-1 rounded-xl font-bold border border-amber-300 transition flex items-center gap-1">
+                        <i class="fa-solid fa-rotate"></i> 重新載入雲端
+                    </button>
+                    <button onclick="showStartScreen()" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1">
+                        <i class="fa-solid fa-house"></i> 主頁
+                    </button>
+                </div>
             </div>
 
             <!-- Mode Filter Tabs -->
@@ -616,21 +625,20 @@
         let startTime = 0;
         let elapsedTime = 0;
 
-        // Universal Cloud Sync Architecture with Smart Data Preservation
-        let isCloudConnected = false;
+        // Mobile-Optimized Multi-Cloud Sync Architecture
         const APP_CLOUD_KEY = 'skh_hcps_math_v2';
+        const PRIMARY_RELAY = `https://keyvalue.openkv.space/get/${APP_CLOUD_KEY}`;
+        const SET_RELAY = `https://keyvalue.openkv.space/set/${APP_CLOUD_KEY}`;
 
         function checkSandboxEnvironment() {
             let isRestricted = false;
             try {
-                // Check if localStorage is blocked
                 localStorage.setItem('__test_key__', '1');
                 localStorage.removeItem('__test_key__');
             } catch (e) {
                 isRestricted = true;
             }
 
-            // Check if inside Google Drive iframe preview
             if (window.self !== window.top && isRestricted) {
                 document.getElementById('sandbox-warning-banner').classList.remove('hidden');
             }
@@ -639,82 +647,29 @@
         async function initCloudSync() {
             checkSandboxEnvironment();
             
-            // 1. ALWAYS load local memory first so no existing local scores are lost
+            // 1. Load local memory
             loadLeaderboardFromStorage();
             renderMiniLeaderboard();
             renderLeaderboardTable();
 
-            const badge = document.getElementById('cloud-status-badge');
-            
-            // 2. Try Firebase dynamic environment if available
-            try {
-                const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'skh-math-multiplication';
+            // 2. Fetch remote with cache-busting timestamp
+            await fetchCloudRelayScores();
 
-                if (firebaseConfigStr) {
-                    const firebaseConfig = JSON.parse(firebaseConfigStr);
-                    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
-                    const { getAuth, signInAnonymously, signInWithCustomToken } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
-                    const { getFirestore, collection, addDoc, onSnapshot } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+            // 3. Periodic background sync every 10s
+            setInterval(fetchCloudRelayScores, 10000);
+        }
 
-                    const app = initializeApp(firebaseConfig);
-                    const auth = getAuth(app);
-                    const db = getFirestore(app);
-
-                    const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                    if (authToken) {
-                        await signInWithCustomToken(auth, authToken);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-
-                    if (auth.currentUser) {
-                        const scoresRef = collection(db, 'artifacts', appId, 'public', 'data', 'scores');
-                        onSnapshot(scoresRef, (snapshot) => {
-                            const inputList = [];
-                            const mcList = [];
-                            snapshot.forEach(docSnap => {
-                                const data = docSnap.data();
-                                if (data.mode === 'input') inputList.push(data);
-                                else if (data.mode === 'mc') mcList.push(data);
-                            });
-
-                            mergeAndSortScores(inputList, mcList);
-                        }, (err) => console.log("Firebase listener error:", err));
-
-                        window._cloudSaveFn = async (docData) => {
-                            await addDoc(scoresRef, docData);
-                        };
-                        isCloudConnected = true;
-                        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 雲端連線中`;
-                        return;
-                    }
-                }
-            } catch (e) {
-                console.log("Firebase not initialized, proceeding with fallback cloud relay:", e);
-            }
-
-            // 3. Fallback Cloud Relay for GitHub Pages & Web
-            try {
-                await fetchCloudRelayScores();
-                setInterval(fetchCloudRelayScores, 8000); // Fetch periodically
-                isCloudConnected = true;
-                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 雲端連線中`;
-            } catch (err) {
-                console.log("Cloud relay offline, keeping local persistence:", err);
-                badge.className = "text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-300 flex items-center gap-1";
-                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> 本機備份模式`;
-            }
+        async function manualCloudSync() {
+            showNotification('正在同步最新雲端資料...');
+            await fetchCloudRelayScores();
+            showNotification('✅ 雲端資料同步完成！');
         }
 
         function mergeAndSortScores(cloudInput = [], cloudMc = []) {
             const sortFn = (a, b) => (b.correct !== a.correct) ? (b.correct - a.correct) : (b.score - a.score);
-
-            // Deduplicate logic using unique key
             const generateUniqueKey = (item) => `${item.className}_${item.classNo}_${item.score}_${item.time}_${item.date}`;
 
             const inputMap = new Map();
-            // Combine local and incoming cloud records safely
             [...leaderboards.input, ...cloudInput].forEach(item => {
                 if (item && item.className) {
                     inputMap.set(generateUniqueKey(item), item);
@@ -736,11 +691,17 @@
         }
 
         async function fetchCloudRelayScores() {
+            const badge = document.getElementById('cloud-status-badge');
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-                const res = await fetch(`https://keyvalue.openkv.space/get/${APP_CLOUD_KEY}`, { signal: controller.signal });
+                // Cache-busting parameter ?t=Date.now() for mobile Safari/Chrome
+                const cacheBustUrl = `${PRIMARY_RELAY}?t=${Date.now()}`;
+                const res = await fetch(cacheBustUrl, { 
+                    signal: controller.signal,
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
                 clearTimeout(timeoutId);
 
                 if (res.ok) {
@@ -748,33 +709,25 @@
                     if (data && typeof data === 'object') {
                         mergeAndSortScores(data.input || [], data.mc || []);
                     }
+                    badge.className = "text-[10px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 cursor-pointer transition";
+                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 雲端連線中 (點擊同步)`;
                 }
             } catch (e) {
-                // If fetch fails, keep local records intact
+                console.log("Cloud fetch retry:", e);
+                badge.className = "text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2.5 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 cursor-pointer transition";
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> 本機模式 (點擊重試)`;
             }
         }
 
         async function saveCloudRelayScores(entry, mode) {
-            // Immediately add to local memory
             leaderboards[mode].push(entry);
             const sortFn = (a, b) => (b.correct !== a.correct) ? (b.correct - a.correct) : (b.score - a.score);
             leaderboards[mode].sort(sortFn);
 
-            // Save to browser LocalStorage securely
             saveLeaderboardToStorage();
 
-            // Save to Firebase Cloud if available
-            if (window._cloudSaveFn) {
-                try {
-                    await window._cloudSaveFn(entry);
-                } catch (e) {
-                    console.log("Firebase save error:", e);
-                }
-            }
-
-            // Save to Universal Key-Value Relay
             try {
-                await fetch(`https://keyvalue.openkv.space/set/${APP_CLOUD_KEY}`, {
+                await fetch(SET_RELAY, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -795,7 +748,7 @@
                 localStorage.setItem('hk_math_multiplication_input', JSON.stringify(leaderboards.input));
                 localStorage.setItem('hk_math_multiplication_mc', JSON.stringify(leaderboards.mc));
             } catch (e) {
-                console.warn("LocalStorage save restricted by browser sandbox");
+                console.warn("LocalStorage save restricted");
             }
         }
 
@@ -1124,6 +1077,7 @@
 
         function renderMiniLeaderboard() {
             const container = document.getElementById('mini-leaderboard');
+            if (!container) return;
             const fullList = leaderboards[currentGameMode] || [];
 
             let filtered = fullList;
@@ -1133,7 +1087,6 @@
                 filtered = fullList.filter(item => !item.isTeacher && item.grade === activeMiniGradeFilter);
             }
             
-            // Limit to Top 10
             const top10 = filtered.slice(0, 10);
 
             if (top10.length === 0) {
@@ -1194,6 +1147,7 @@
 
         function renderLeaderboardTable() {
             const tbody = document.getElementById('leaderboard-table-body');
+            if (!tbody) return;
             const fullList = leaderboards[activeLeaderboardTab] || [];
 
             let filtered = fullList;
@@ -1203,7 +1157,6 @@
                 filtered = fullList.filter(item => !item.isTeacher && item.grade === activeMainGradeFilter);
             }
 
-            // Limit to Top 10
             const top10 = filtered.slice(0, 10);
 
             if (top10.length === 0) {
