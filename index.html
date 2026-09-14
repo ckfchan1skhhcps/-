@@ -69,7 +69,7 @@
     <!-- Sandbox Warning Banner -->
     <div id="sandbox-warning-banner" class="hidden fixed top-0 left-0 right-0 z-50 bg-amber-500 text-amber-950 px-4 py-2 text-xs md:text-sm font-bold text-center shadow-lg flex items-center justify-center gap-2">
         <i class="fa-solid fa-triangle-exclamation text-base"></i>
-        <span>警告：正在預覽模式中開啟！請使用發佈連結開啟以確保排行榜正常同步。</span>
+        <span>警告：正在預覽模式或App內建視窗中開啟！建議使用「 Safari / Chrome 瀏覽器」開啟以確保排行榜正常同步。</span>
     </div>
 
     <div id="teacher-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -639,7 +639,7 @@
                 isRestricted = true;
             }
 
-            if (window.self !== window.top && isRestricted) {
+            if ((window.self !== window.top || isRestricted) && document.getElementById('sandbox-warning-banner')) {
                 document.getElementById('sandbox-warning-banner').classList.remove('hidden');
             }
         }
@@ -655,8 +655,8 @@
             // 2. Fetch remote with cache-busting timestamp
             await fetchCloudRelayScores();
 
-            // 3. Periodic background sync every 10s
-            setInterval(fetchCloudRelayScores, 10000);
+            // 3. Periodic background sync every 8s
+            setInterval(fetchCloudRelayScores, 8000);
         }
 
         async function manualCloudSync() {
@@ -696,7 +696,7 @@
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-                // Cache-busting parameter ?t=Date.now() for mobile Safari/Chrome
+                // Anti-Cache Timestamp URL parameter
                 const cacheBustUrl = `${PRIMARY_RELAY}?t=${Date.now()}`;
                 const res = await fetch(cacheBustUrl, { 
                     signal: controller.signal,
@@ -709,17 +709,34 @@
                     if (data && typeof data === 'object') {
                         mergeAndSortScores(data.input || [], data.mc || []);
                     }
-                    badge.className = "text-[10px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 cursor-pointer transition";
-                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 雲端連線中 (點擊同步)`;
+                    if (badge) {
+                        badge.className = "text-[10px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 cursor-pointer transition";
+                        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 雲端連線中 (點擊同步)`;
+                    }
                 }
             } catch (e) {
                 console.log("Cloud fetch retry:", e);
-                badge.className = "text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2.5 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 cursor-pointer transition";
-                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> 本機模式 (點擊重試)`;
+                if (badge) {
+                    badge.className = "text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2.5 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 cursor-pointer transition";
+                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> 本機模式 (點擊重試)`;
+                }
             }
         }
 
         async function saveCloudRelayScores(entry, mode) {
+            // CRITICAL FIX: Fetch latest scores FIRST before merging & uploading to prevent last-write-wins overwrite
+            try {
+                const res = await fetch(`${PRIMARY_RELAY}?t=${Date.now()}`);
+                if (res.ok) {
+                    const latestRemoteData = await res.json();
+                    if (latestRemoteData && typeof latestRemoteData === 'object') {
+                        mergeAndSortScores(latestRemoteData.input || [], latestRemoteData.mc || []);
+                    }
+                }
+            } catch (err) {
+                console.log("Pre-save cloud sync fetch skipped:", err);
+            }
+
             leaderboards[mode].push(entry);
             const sortFn = (a, b) => (b.correct !== a.correct) ? (b.correct - a.correct) : (b.score - a.score);
             leaderboards[mode].sort(sortFn);
