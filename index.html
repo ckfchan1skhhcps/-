@@ -82,7 +82,7 @@
 
             <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 font-medium">
                 <p class="font-bold mb-1">💡 本程式已開啟【純雲端模式】：</p>
-                <p>所有裝置（手機、iPad、電腦）均強制連接同一雲端資料庫，確保排行榜 100% 實時同步。</p>
+                <p>所有裝置（手機、iPad、電腦）均強制連接同一雲端資料庫，不使用任何本地暫存，確保排行榜 100% 相同。</p>
             </div>
 
             <div class="flex gap-2">
@@ -99,7 +99,7 @@
         <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl space-y-4">
             <div class="text-4xl">🍎</div>
             <h3 class="text-2xl font-black text-indigo-900">老師專區驗證</h3>
-            <p class="text-xs text-gray-500">請輸入教師解鎖密碼（預設密碼：hcps）以進入老師參戰模式</p>
+            <p class="text-xs text-gray-500">請輸入教師解鎖密碼以進入老師參戰模式</p>
             
             <div class="space-y-3 text-left">
                 <div>
@@ -323,9 +323,10 @@
                     <button onclick="setMiniGradeFilter('TEACHER')" id="mini-grade-TEACHER" class="px-2.5 py-1 rounded-lg bg-gray-200 text-gray-700 shrink-0">教師組</button>
                 </div>
 
+                <div id="my-rank-mini" class="hidden mb-2 p-2.5 rounded-xl bg-indigo-50 border-2 border-indigo-200 text-xs"></div>
                 <div id="mini-leaderboard" class="space-y-1.5 text-xs max-h-48 overflow-y-auto">
                     <div class="text-center py-4 text-gray-400 font-bold">
-                        <i class="fa-solid fa-spinner animate-spin text-indigo-500 mr-1"></i> 正在下載全球雲端排行榜...
+                        <i class="fa-solid fa-spinner animate-spin text-indigo-500 mr-1"></i> 正在下載全校排行榜...
                     </div>
                 </div>
             </div>
@@ -407,7 +408,7 @@
             <div class="bg-gradient-to-b from-amber-100 to-yellow-50 p-5 rounded-3xl border-4 border-amber-300 shadow-xl relative">
                 <div class="text-5xl mb-1" id="result-emoji">🏆</div>
                 <h2 class="text-2xl md:text-3xl font-black text-amber-900" id="result-title">極速挑戰完成！</h2>
-                <p class="text-amber-700 font-bold text-xs mt-0.5" id="result-subtitle">成績正在同步上傳至全校雲端排行榜...</p>
+                <p class="text-amber-700 font-bold text-xs mt-0.5" id="result-subtitle">成績正在同步上傳至全校 Google 排行榜...</p>
 
                 <div class="grid grid-cols-2 gap-2.5 my-4">
                     <div class="bg-white p-3 rounded-2xl shadow-sm border border-amber-200">
@@ -500,6 +501,7 @@
                         <!-- Populated by Javascript -->
                     </tbody>
                 </table>
+                <div id="my-rank-main" class="hidden mt-3 p-3 rounded-xl bg-indigo-50 border-2 border-indigo-200 text-xs md:text-sm"></div>
             </div>
 
             <div class="pt-1">
@@ -607,35 +609,33 @@
 
         async function runNetworkDiagnostics() {
             const box = document.getElementById('debug-log-box');
-            box.innerHTML = `<p>> 開始檢測純雲端連線狀態...</p>`;
+            box.innerHTML = `<p>> 開始檢測全校同步...</p>`;
             logDebug(`當前裝置: ${navigator.userAgent.includes('Mobile') ? '📱 流動裝置' : '💻 電腦/平板'}`);
-            
-            for (let i = 0; i < CLOUD_RELAYS.length; i++) {
-                const relay = CLOUD_RELAYS[i];
-                logDebug(`測試雲端通道 ${i+1}: ${relay.name}...`);
-                const startTime = Date.now();
-                try {
-                    const res = await fetch(`${relay.get}?_t=${Date.now()}_${Math.random()}`, { method: 'GET', cache: 'no-store' });
-                    const duration = Date.now() - startTime;
-                    if (res.ok || res.status === 404) {
-                        logDebug(`🟢 通道 ${i+1} 連線正常 (狀態碼: ${res.status}, 延遲: ${duration}ms)`);
-                    } else {
-                        logDebug(`🔴 通道 ${i+1} 狀態碼: ${res.status}`);
-                    }
-                } catch (err) {
-                    logDebug(`❌ 通道 ${i+1} 連線障礙: ${err.message}`);
+            logDebug('測試全校雲端通道...');
+            const startTime = Date.now();
+            try {
+                const res = await fetch(CLOUD_DOC_URL + '?t=' + Date.now(), { method: 'GET', cache: 'no-store' });
+                const duration = Date.now() - startTime;
+                if (res.ok) {
+                    const data = await res.json();
+                    const n = (data.input||[]).length + (data.mc||[]).length;
+                    logDebug(`🟢 雲端連線正常（${duration}ms），現有 ${n} 筆成績`);
+                } else {
+                    logDebug(`🔴 雲端回應狀態碼: ${res.status}`);
                 }
+            } catch (err) {
+                logDebug(`❌ 雲端連線障礙: ${err.message}`);
             }
         }
 
         async function forceReSync() {
-            logDebug("發起純雲端數據刷新...");
+            logDebug("重新載入全校榜...");
             await fetchCloudScoresOnly();
-            logDebug("雲端刷新完畢！");
-            showNotification("✅ 已下載最新全球雲端排行榜！");
+            logDebug("刷新完畢！");
+            showNotification("✅ 已下載最新全校排行榜！");
         }
 
-        // Teacher Verification Logic & State
+        // Teacher Verification Logic
         let isTeacherMode = false;
         let teacherInfo = { title: "" };
 
@@ -649,23 +649,21 @@
         }
 
         function verifyTeacherPin() {
-            const pinInput = document.getElementById('teacher-pin-input').value.trim();
-            const titleSelect = document.getElementById('teacher-title-select').value;
-
-            // Password check (Accepts "hcps", "1234", "8888", or any non-empty teacher pin)
-            if (pinInput === "hcps" || pinInput === "1234" || pinInput === "8888" || pinInput.length > 0) {
+            const pin = document.getElementById('teacher-pin-input').value.trim();
+            if (pin === "4931") {
+                const title = document.getElementById('teacher-title-select').value;
                 isTeacherMode = true;
-                teacherInfo.title = titleSelect;
+                teacherInfo.title = title;
 
-                document.getElementById('teacher-display-name').innerText = `身份：${titleSelect}`;
+                document.getElementById('teacher-display-name').innerText = `參戰身份：🍎 ${title}`;
                 document.getElementById('teacher-mode-banner').classList.remove('hidden');
                 document.getElementById('student-select-section').classList.add('hidden');
                 document.getElementById('student-quote-box').classList.add('hidden');
 
                 closeTeacherModal();
-                showNotification(`🍎 成功解鎖！歡迎 ${titleSelect} 參戰！`);
+                showNotification(`已成功解鎖：${title} 參戰！`);
             } else {
-                showNotification("❌ 解鎖密碼不正確，請重新輸入");
+                showNotification("解鎖密碼不正確！");
             }
         }
 
@@ -676,21 +674,6 @@
             document.getElementById('student-quote-box').classList.remove('hidden');
             showNotification("已切換回學生模式");
         }
-
-        // Pure Cloud Architecture - Single Unique Global Key
-        const CLOUD_APP_KEY = 'skh_hcps_math_v2026_cloud_v2';
-        const CLOUD_RELAYS = [
-            {
-                name: "KVDB Cloud Server",
-                get: `https://kvdb.io/4yC8M5n2o9P3zX1b7v8w9q/${CLOUD_APP_KEY}`,
-                set: `https://kvdb.io/4yC8M5n2o9P3zX1b7v8w9q/${CLOUD_APP_KEY}`
-            },
-            {
-                name: "OpenKV Cloud Server",
-                get: `https://keyvalue.openkv.space/get/${CLOUD_APP_KEY}`,
-                set: `https://keyvalue.openkv.space/set/${CLOUD_APP_KEY}`
-            }
-        ];
 
         // Leaderboard State - Strictly Cloud Derived
         let leaderboards = {
@@ -713,155 +696,191 @@
         let startTime = 0;
         let elapsedTime = 0;
 
-        function loadLocalCache() {
-            try {
-                const cached = localStorage.getItem('hcps_leaderboard_cache');
-                if (cached) {
-                    const parsed = JSON.parse(cached);
-                    if (parsed && typeof parsed === 'object') {
-                        leaderboards.input = Array.isArray(parsed.input) ? parsed.input : [];
-                        leaderboards.mc = Array.isArray(parsed.mc) ? parsed.mc : [];
-                    }
-                }
-            } catch (e) {
-                console.warn("Local cache read error:", e);
-            }
+        // ===== 全校同步（已代為開好共用資料庫，電腦／iPhone 讀同一份）=====
+        const CLOUD_DOC_URL = 'https://crudcrud.com/api/b41a5d7d58944f7eaaee2dda1109d1d2/scores/6aa7c3f7fd5cf803e84b0342';
+
+        function isCloudConfigured() {
+            return !!CLOUD_DOC_URL;
         }
 
-        function saveLocalCache() {
-            try {
-                localStorage.setItem('hcps_leaderboard_cache', JSON.stringify({
-                    input: leaderboards.input.slice(0, 100),
-                    mc: leaderboards.mc.slice(0, 100)
-                }));
-            } catch (e) {
-                console.warn("Local cache write error:", e);
-            }
+        function playerKey(item, mode) {
+            const m = mode || item.mode || currentGameMode;
+            if (item.isTeacher) return `${m}|T|${item.className}`;
+            return `${m}|S|${item.grade}|${item.className}|${item.classNo}`;
+        }
+
+        function currentPlayerKey(mode) {
+            return playerKey({
+                isTeacher: currentStudent.isTeacher,
+                className: currentStudent.className,
+                classNo: currentStudent.classNo,
+                grade: currentStudent.grade
+            }, mode || currentGameMode);
+        }
+
+        function hasIdentity() {
+            if (currentStudent.isTeacher) return !!currentStudent.className;
+            return !!(currentStudent.className && currentStudent.classNo);
+        }
+
+        function sortScores(a, b) {
+            if (b.correct !== a.correct) return b.correct - a.correct;
+            if (b.score !== a.score) return b.score - a.score;
+            return a.time - b.time;
+        }
+
+        function normalizeList(list) {
+            if (!Array.isArray(list)) return [];
+            return list.map(item => ({
+                className: item.className || '',
+                classNo: item.classNo || '',
+                grade: item.grade || '',
+                isTeacher: !!item.isTeacher,
+                time: Number(item.time) || 0,
+                correct: Number(item.correct) || 0,
+                score: Number(item.score) || 0,
+                mode: item.mode || 'input',
+                date: item.date || ''
+            })).sort(sortScores);
+        }
+
+        function setCloudBadge(state, text) {
+            const badge = document.getElementById('cloud-status-badge');
+            if (!badge) return;
+            const styles = {
+                ok: "text-[10px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 cursor-pointer transition",
+                wait: "text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2.5 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 cursor-pointer transition",
+                err: "text-[10px] bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold px-2.5 py-0.5 rounded-full border border-rose-300 flex items-center gap-1 cursor-pointer transition"
+            };
+            badge.className = styles[state] || styles.wait;
+            const dot = state === 'ok' ? 'bg-emerald-500 animate-pulse' : (state === 'err' ? 'bg-rose-500' : 'bg-amber-500');
+            badge.innerHTML = `<span class="w-2 h-2 rounded-full ${dot}"></span> ${text}`;
         }
 
         async function initCloudSync() {
-            loadLocalCache();
-            renderMiniLeaderboard();
-            renderLeaderboardTable();
-
+            if (!isCloudConfigured()) {
+                setCloudBadge('err', '⚠️ 未設定雲端同步');
+                renderMiniLeaderboard();
+                renderLeaderboardTable();
+                return;
+            }
             await fetchCloudScoresOnly();
-            setInterval(fetchCloudScoresOnly, 8000);
+            setInterval(fetchCloudScoresOnly, 4000);
         }
 
         async function manualCloudSync() {
-            showNotification('正在下載全球雲端資料...');
+            showNotification('正在重新載入全校榜...');
             const success = await fetchCloudScoresOnly();
-            if (success) {
-                showNotification('✅ 雲端資料刷新成功！');
-            } else {
-                showNotification('⚠️ 已載入暫存資料 (雲端連線忙碌中)');
-            }
+            showNotification(success ? '✅ 全校榜已更新！' : '⚠️ 暫時連唔上雲端，請稍後再試');
         }
 
         async function fetchCloudScoresOnly() {
-            const badge = document.getElementById('cloud-status-badge');
-            let fetchedSuccess = false;
-
-            for (const relay of CLOUD_RELAYS) {
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 2500);
-
-                    const freshUrl = `${relay.get}?nocache=${Date.now()}_${Math.random()}`;
-                    const res = await fetch(freshUrl, { 
-                        signal: controller.signal,
-                        method: 'GET',
-                        headers: { 
-                            'Cache-Control': 'no-cache, no-store, must-revalidate',
-                            'Pragma': 'no-cache'
-                        },
-                        cache: 'no-store'
-                    });
-                    clearTimeout(timeoutId);
-
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data && typeof data === 'object') {
-                            const sortFn = (a, b) => (b.correct !== a.correct) ? (b.correct - a.correct) : (b.score - a.score);
-                            
-                            const mergedInput = mergeScoresList(leaderboards.input, data.input || []);
-                            const mergedMc = mergeScoresList(leaderboards.mc, data.mc || []);
-
-                            leaderboards.input = mergedInput.sort(sortFn).slice(0, 100);
-                            leaderboards.mc = mergedMc.sort(sortFn).slice(0, 100);
-                            
-                            saveLocalCache();
-                            fetchedSuccess = true;
-                            break;
-                        }
-                    } else if (res.status === 404) {
-                        fetchedSuccess = true;
-                        break;
-                    }
-                } catch (e) {
-                    console.warn(`Relay ${relay.name} fetch bypass:`, e);
-                }
+            if (!isCloudConfigured()) {
+                setCloudBadge('err', '⚠️ 未設定雲端同步');
+                return false;
             }
-
-            renderMiniLeaderboard();
-            renderLeaderboardTable();
-
-            if (badge) {
-                if (fetchedSuccess) {
-                    badge.className = "text-[10px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 cursor-pointer transition";
-                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 🌐 雲端連線正常`;
-                } else {
-                    badge.className = "text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2.5 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 cursor-pointer transition";
-                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> ⚠️ 本機暫存模式 (點擊重試)`;
-                }
+            setCloudBadge('wait', '⏳ 同步中');
+            try {
+                const res = await fetch(CLOUD_DOC_URL + '?t=' + Date.now(), { method: 'GET', cache: 'no-store' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                leaderboards.input = normalizeList(data.input);
+                leaderboards.mc = normalizeList(data.mc);
+                setCloudBadge('ok', '🌐 全校同步中');
+                renderMiniLeaderboard();
+                renderLeaderboardTable();
+                return true;
+            } catch (e) {
+                console.warn('Cloud fetch failed:', e);
+                setCloudBadge('err', '⚠️ 同步失敗（重試中）');
+                return false;
             }
-
-            return fetchedSuccess;
         }
 
-        function mergeScoresList(listA, listB) {
-            const map = new Map();
-            const combine = [...(listA || []), ...(listB || [])];
-            
-            combine.forEach(item => {
-                if (!item || !item.className) return;
-                const key = `${item.className}_${item.classNo || ''}_${item.score}_${item.time}`;
-                if (!map.has(key)) {
-                    map.set(key, item);
-                }
-            });
-
-            return Array.from(map.values());
+        function isBetter(newEntry, oldEntry) {
+            if (!oldEntry) return true;
+            if (newEntry.correct !== oldEntry.correct) return newEntry.correct > oldEntry.correct;
+            if (newEntry.score !== oldEntry.score) return newEntry.score > oldEntry.score;
+            return newEntry.time < oldEntry.time;
         }
 
         async function saveCloudRelayScores(entry, mode) {
-            leaderboards[mode].push(entry);
-            const sortFn = (a, b) => (b.correct !== a.correct) ? (b.correct - a.correct) : (b.score - a.score);
-            leaderboards[mode].sort(sortFn);
-            saveLocalCache();
-
+            const list = leaderboards[mode] || [];
+            const key = playerKey(entry, mode);
+            const idx = list.findIndex(item => playerKey(item, mode) === key);
+            if (idx >= 0) {
+                if (isBetter(entry, list[idx])) list[idx] = entry;
+            } else {
+                list.push(entry);
+            }
+            list.sort(sortScores);
+            leaderboards[mode] = list;
             renderMiniLeaderboard();
             renderLeaderboardTable();
 
-            await fetchCloudScoresOnly();
-
-            const payload = JSON.stringify({
-                input: leaderboards.input.slice(0, 100),
-                mc: leaderboards.mc.slice(0, 100),
-                lastUpdated: Date.now()
-            });
-
-            for (const relay of CLOUD_RELAYS) {
-                try {
-                    await fetch(relay.set, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: payload
-                    });
-                } catch (e) {
-                    console.warn(`Relay ${relay.name} save warning:`, e);
-                }
+            if (!isCloudConfigured()) {
+                showNotification('本地已記錄，但雲端未設定。');
+                return;
             }
+
+            try {
+                await fetchCloudScoresOnly();
+                const latest = leaderboards[mode] || [];
+                const latestIdx = latest.findIndex(item => playerKey(item, mode) === key);
+                if (latestIdx >= 0) {
+                    if (isBetter(entry, latest[latestIdx])) latest[latestIdx] = entry;
+                } else {
+                    latest.push(entry);
+                }
+                latest.sort(sortScores);
+                leaderboards[mode] = latest;
+                const payload = {
+                    input: leaderboards.input.slice(0, 200),
+                    mc: leaderboards.mc.slice(0, 200),
+                    lastUpdated: Date.now()
+                };
+                const res = await fetch(CLOUD_DOC_URL, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok && res.status !== 200 && res.status !== 204) {
+                    throw new Error('HTTP ' + res.status);
+                }
+                setCloudBadge('ok', '🌐 全校同步中');
+                renderMiniLeaderboard();
+                renderLeaderboardTable();
+            } catch (e) {
+                console.warn('Cloud save failed:', e);
+                setCloudBadge('err', '⚠️ 上載失敗');
+                showNotification('成績已喺呢部裝置顯示，但未成功寫入全校榜，請檢查網絡後再玩一次。');
+            }
+        }
+
+        function findMyRecord(list, mode) {
+            if (!hasIdentity()) return { rank: null, item: null, total: list.length };
+            const key = currentPlayerKey(mode);
+            const idx = list.findIndex(item => playerKey(item, mode) === key);
+            if (idx < 0) return { rank: null, item: null, total: list.length };
+            return { rank: idx + 1, item: list[idx], total: list.length };
+        }
+
+        function myRankHtml(list, mode, compact) {
+            if (!hasIdentity()) {
+                return compact
+                    ? `<div class="text-gray-500 font-bold">選擇年級／班別／班號後，呢度會顯示你自己嘅名次。</div>`
+                    : `<div class="font-bold text-indigo-900">💡 先喺主頁揀好自己嘅班別，就可以喺榜上見到自己嘅成績。</div>`;
+            }
+            const mine = findMyRecord(list, mode);
+            if (!mine.item) {
+                return `<div class="font-bold text-indigo-900">👤 ${currentStudent.className}${currentStudent.isTeacher ? '' : ' ' + currentStudent.classNo + '號'}　尚未上榜，完成挑戰後就會出現喺全校榜。</div>`;
+            }
+            const label = mine.item.isTeacher ? mine.item.className : `${mine.item.className}（${mine.item.classNo}號）`;
+            return `<div class="flex items-center justify-between gap-2">
+                <div class="font-black text-indigo-900">👤 ${label}</div>
+                <div class="font-black text-amber-600">全校第 ${mine.rank} 名 / ${mine.total}</div>
+            </div>
+            <div class="mt-1 text-indigo-800 font-bold">${mine.item.correct}/5 對　${mine.item.time.toFixed(2)}s　${mine.item.score.toLocaleString()} 分</div>`;
         }
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -879,6 +898,36 @@
                 opt.textContent = `${i} 號`;
                 selectNo.appendChild(opt);
             }
+            try {
+                const saved = JSON.parse(localStorage.getItem('skh_hcps_identity') || 'null');
+                if (saved) {
+                    if (saved.grade) document.getElementById('select-grade').value = saved.grade;
+                    if (saved.classLetter) document.getElementById('select-class-letter').value = saved.classLetter;
+                    if (saved.classNo) document.getElementById('select-class-no').value = saved.classNo;
+                    applyIdentityFromForm();
+                }
+            } catch (e) {}
+            ['select-grade', 'select-class-letter', 'select-class-no'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', applyIdentityFromForm);
+            });
+        }
+
+        function applyIdentityFromForm() {
+            if (isTeacherMode) {
+                renderMiniLeaderboard();
+                renderLeaderboardTable();
+                return;
+            }
+            const grade = document.getElementById('select-grade').value;
+            const classLetter = document.getElementById('select-class-letter').value;
+            const classNo = document.getElementById('select-class-no').value;
+            if (grade && classLetter && classNo) {
+                currentStudent = { className: `${grade}${classLetter}`, classNo, grade, isTeacher: false };
+                localStorage.setItem('skh_hcps_identity', JSON.stringify({ grade, classLetter, classNo }));
+            }
+            renderMiniLeaderboard();
+            renderLeaderboardTable();
         }
 
         function selectGameMode(mode) {
@@ -1151,7 +1200,7 @@
                 date: new Date().toLocaleDateString('zh-HK', { month: '2-digit', day: '2-digit' })
             }, currentGameMode);
 
-            document.getElementById('result-subtitle').innerText = "✅ 成績已成功實時同步至全校雲端排行榜！";
+            document.getElementById('result-subtitle').innerText = "✅ 成績已同步至全校排行榜！";
             showScreen('screen-result');
         }
 
@@ -1173,8 +1222,13 @@
 
         function renderMiniLeaderboard() {
             const container = document.getElementById('mini-leaderboard');
+            const mineBox = document.getElementById('my-rank-mini');
             if (!container) return;
             const fullList = leaderboards[currentGameMode] || [];
+            if (mineBox) {
+                mineBox.classList.remove('hidden');
+                mineBox.innerHTML = myRankHtml(fullList, currentGameMode, true);
+            }
 
             let filtered = fullList;
             if (activeMiniGradeFilter === 'TEACHER') {
@@ -1188,25 +1242,29 @@
             if (top10.length === 0) {
                 container.innerHTML = `
                     <div class="text-center py-3 text-gray-400 text-xs font-bold bg-white/60 rounded-xl border border-dashed border-gray-300">
-                        ⚡ 該類別暫無雲端紀錄，快成為第一個閃電王吧！
+                        ⚡ 該類別暫無紀錄，快成為第一個閃電王吧！
                     </div>
                 `;
                 return;
             }
 
             const medals = ['🥇', '🥈', '🥉'];
-            container.innerHTML = top10.map((item, index) => `
-                <div class="flex justify-between items-center ${item.isTeacher ? 'bg-amber-50 border-amber-300' : 'bg-white border-gray-100'} p-2 rounded-xl border shadow-sm">
+            const myKey = hasIdentity() ? currentPlayerKey(currentGameMode) : '';
+            container.innerHTML = top10.map((item, index) => {
+                const isMe = myKey && playerKey(item, currentGameMode) === myKey;
+                const bg = isMe ? 'bg-indigo-100 border-indigo-400' : (item.isTeacher ? 'bg-amber-50 border-amber-300' : 'bg-white border-gray-100');
+                return `
+                <div class="flex justify-between items-center ${bg} p-2 rounded-xl border shadow-sm">
                     <div class="flex items-center gap-2">
                         <span class="text-sm">${medals[index] || index + 1}</span>
-                        <span class="font-bold text-gray-800">${item.className} ${item.isTeacher ? '' : `(${item.classNo})`}</span>
+                        <span class="font-bold text-gray-800">${item.className} ${item.isTeacher ? '' : `(${item.classNo})`}${isMe ? ' · 我' : ''}</span>
                     </div>
                     <div class="text-right">
                         <span class="font-mono text-indigo-600 font-black">${item.time.toFixed(2)}s</span>
                         <span class="text-[11px] text-emerald-600 font-bold ml-1">(${item.correct}/5)</span>
                     </div>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
         }
 
         function switchLeaderboardTab(mode) {
@@ -1255,18 +1313,25 @@
 
             const top10 = filtered.slice(0, 10);
 
+            const mineBox = document.getElementById('my-rank-main');
+            if (mineBox) {
+                mineBox.classList.remove('hidden');
+                mineBox.innerHTML = myRankHtml(fullList, activeLeaderboardTab, false);
+            }
+
             if (top10.length === 0) {
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="4" class="text-center py-6 text-gray-400 font-bold text-xs md:text-sm">
                             <i class="fa-solid fa-trophy text-2xl text-amber-300 mb-1 block"></i>
-                            該分級暫無雲端紀錄，快來進行第一次挑戰吧！
+                            該分級暫無紀錄，快來進行第一次挑戰吧！
                         </td>
                     </tr>
                 `;
                 return;
             }
 
+            const myKey = hasIdentity() ? currentPlayerKey(activeLeaderboardTab) : '';
             tbody.innerHTML = top10.map((item, index) => {
                 let rankBadge = `${index + 1}`;
                 if (index === 0) rankBadge = '🥇 1';
@@ -1274,13 +1339,15 @@
                 if (index === 2) rankBadge = '🥉 3';
 
                 const displayLabel = item.isTeacher ? item.className : `${item.className} (${item.classNo})`;
+                const isMe = myKey && playerKey(item, activeLeaderboardTab) === myKey;
+                const rowClass = isMe ? 'bg-indigo-50 border-l-4 border-indigo-500' : (item.isTeacher ? 'bg-amber-50/80 border-l-4 border-amber-400' : 'hover:bg-gray-50');
 
                 return `
-                    <tr class="${item.isTeacher ? 'bg-amber-50/80 border-l-4 border-amber-400' : 'hover:bg-gray-50'} transition">
+                    <tr class="${rowClass} transition">
                         <td class="p-2.5 text-center font-bold text-gray-700">${rankBadge}</td>
                         <td class="p-2.5">
                             <div class="font-bold text-gray-800 flex items-center gap-1">
-                                ${displayLabel}
+                                ${displayLabel}${isMe ? ' · 我' : ''}
                             </div>
                             <div class="text-[10px] text-gray-400">${item.date || '今日'}</div>
                         </td>
