@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>閃電乘數王 - 聖公會聖十架小學</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Canvas Confetti for victory animations -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Fredoka', 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #6ee7b7 0%, #3b82f6 50%, #9333ea 100%);
+            min-height: 100vh;
+            user-select: none;
+        }
+        .bounce-in {
+            animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .key-btn {
+            transition: all 0.1s ease;
+            box-shadow: 0 5px 0 rgba(0,0,0,0.18);
+        }
+        .key-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.18);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(12px);
+            border: 4px solid rgba(255, 255, 255, 0.65);
+        }
+        .shake {
+            animation: shake 0.4s ease-in-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-3 md:p-6 text-gray-800 min-h-screen">
+
+    <!-- Custom Toast Message -->
+    <div id="custom-toast" class="hidden fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-rose-600 text-white font-bold px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 transition animate-bounce text-sm md:text-base">
+        <i class="fa-solid fa-triangle-exclamation text-yellow-300 text-lg"></i>
+        <span id="toast-msg">請完整選擇年級、班別及班號！</span>
+    </div>
+
+    <!-- Storage Warning Banner (Shows if opened in restricted iframe preview) -->
+    <div id="sandbox-warning-banner" class="hidden fixed top-0 left-0 right-0 z-50 bg-amber-500 text-amber-950 px-4 py-2 text-xs md:text-sm font-bold text-center shadow-lg flex items-center justify-center gap-2">
+        <i class="fa-solid fa-triangle-exclamation text-base"></i>
+        <span>警告：正在 Google Drive/Classroom 預覽模式中開啟！請使用【發佈網址連結】開啟，否則排行榜紀錄無法跨次儲存。</span>
+    </div>
+
+    <!-- Teacher Authentication Modal -->
+    <div id="teacher-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl space-y-4">
+            <div class="text-4xl">🍎</div>
+            <h3 class="text-2xl font-black text-indigo-900">老師專區驗證</h3>
+            <p class="text-xs text-gray-500">請輸入教師解鎖密碼以進入老師參戰模式</p>
+            
+            <div class="space-y-3 text-left">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">教師解鎖密碼 Password</label>
+                    <input type="password" id="teacher-pin-input" placeholder="請輸入解鎖密碼" 
+                        class="w-full px-4 py-2.5 text-center font-mono text-lg font-bold border-2 border-indigo-200 rounded-xl focus:border-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">教職員姓名 / 稱謂 Name & Title</label>
+                    <select id="teacher-title-select" class="w-full px-3 py-2.5 font-bold border-2 border-indigo-200 rounded-xl focus:border-indigo-500 focus:outline-none bg-white max-h-48">
+                        <option value="黃婉茵 老師">🍎 黃婉茵 老師</option>
+                        <option value="李佩研 老師">🍎 李佩研 老師</option>
+                        <option value="黃寶儀 老師">🍎 黃寶儀 老師</option>
+                        <option value="趙公瑄 老師">🍎 趙公瑄 老師</option>
+                        <option value="李冠融 老師">🍎 李冠融 老師</option>
+                        <option value="林君儀 老師">🍎 林君儀 老師</option>
+                        <option value="羅麗斯 老師">🍎 羅麗斯 老師</option>
+                        <option value="徐詩晴 老師">🍎 徐詩晴 老師</option>
+                        <option value="佘珮珊 老師">🍎 佘珮珊 老師</option>
+                        <option value="陳詠怡 老師">🍎 陳詠怡 老師</option>
+                        <option value="鄭文茵 老師">🍎 鄭文茵 老師</option>
+                        <option value="謝凱琪 老師">🍎 謝凱琪 老師</option>
+                        <option value="曾麗華 老師">🍎 曾麗華 老師</option>
+                        <option value="劉牧之 老師">🍎 劉牧之 老師</option>
+                        <option value="蕭珈瑩 老師">🍎 蕭珈瑩 老師</option>
+                        <option value="鄺婉儀 老師">🍎 鄺婉儀 老師</option>
+                        <option value="吳嘉莉 老師">🍎 吳嘉莉 老師</option>
+                        <option value="曾芷雪 老師">🍎 曾芷雪 老師</option>
+                        <option value="陳惠賢 老師">🍎 陳惠賢 老師</option>
+                        <option value="陳家輝 老師">🍎 陳家輝 老師</option>
+                        <option value="杜書妙 老師">🍎 杜書妙 老師</option>
+                        <option value="林菁怡 老師">🍎 林菁怡 老師</option>
+                        <option value="麥志杰 老師">🍎 麥志杰 老師</option>
+                        <option value="張衍恩 老師">🍎 張衍恩 老師</option>
+                        <option value="陳雅彤 老師">🍎 陳雅彤 老師</option>
+                        <option value="李玉婷 老師">🍎 李玉婷 老師</option>
+                        <option value="梁淑儀 老師">🍎 梁淑儀 老師</option>
+                        <option value="林溢佳 老師">🍎 林溢佳 老師</option>
+                        <option value="譚美嫦 老師">🍎 譚美嫦 老師</option>
+                        <option value="Justin Li 李本宏 (ELTA)">🍎 Justin Li 李本宏 (ELTA)</option>
+                        <option value="李日朗 老師">🍎 李日朗 老師</option>
+                        <option value="劉怡孜 老師">🍎 劉怡孜 老師</option>
+                        <option value="馬家榮 老師">🍎 馬家榮 老師</option>
+                        <option value="黃芷茵 老師">🍎 黃芷茵 老師</option>
+                        <option value="鄭凱珊 老師">🍎 鄭凱珊 老師</option>
+                        <option value="林凱盈 老師">🍎 林凱盈 老師</option>
+                        <option value="連輝 老師">🍎 連輝 老師</option>
+                        <option value="周志強 老師">🍎 周志強 老師</option>
+                        <option value="葉巧昭 老師">🍎 葉巧昭 老師</option>
+                        <option value="何珊 老師">🍎 何珊 老師</option>
+                        <option value="羅詩琪 老師">🍎 羅詩琪 老師</option>
+                        <option value="Inglis Clayton Vaughan 老師">🍎 Inglis Clayton Vaughan 老師</option>
+                        <option value="黎冠麟 主任">📚 黎冠麟 主任</option>
+                        <option value="陳頌康 校長">👑 陳頌康 校長</option>
+                        <option value="李淑貞 副校長">🎓 李淑貞 副校長</option>
+                        <option value="徐笑 主任">📚 徐笑 主任</option>
+                        <option value="孫雪 主任">📚 孫雪 主任</option>
+                        <option value="林淑芬 主任">📚 林淑芬 主任</option>
+                        <option value="葉晴欣 主任">📚 葉晴欣 主任</option>
+                        <option value="李美珠 副校長">🎓 李美珠 副校長</option>
+                        <option value="楊裕新 副校長">🎓 楊裕新 副校長</option>
+                        <option value="譚佩儀 老師">🍎 譚佩儀 老師</option>
+                        <option value="陳錦思 主任">📚 陳錦思 主任</option>
+                        <option value="劉凱齡 主任">📚 劉凱齡 主任</option>
+                        <option value="莫昭文 主任">📚 莫昭文 主任</option>
+                        <option value="陳佩儀 主任">📚 陳佩儀 主任</option>
+                        <option value="曾愷凌 主任">📚 曾愷凌 主任</option>
+                        <option value="黃國煒 主任">📚 黃國煒 主任</option>
+                        <option value="黎穎琳 老師">🍎 黎穎琳 老師</option>
+                        <option value="趙鈞浩 老師">🍎 趙鈞浩 老師</option>
+                        <option value="吳炳輝 老師">🍎 吳炳輝 老師</option>
+                        <option value="陳聆爾 老師">🍎 陳聆爾 老師</option>
+                        <option value="阮素雲 老師">🍎 阮素雲 老師</option>
+                        <option value="胡夢月 老師">🍎 胡夢月 老師</option>
+                        <option value="周英傑 社工">💚 周英傑 社工</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+                <button onclick="closeTeacherModal()" class="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl">取消</button>
+                <button onclick="verifyTeacherPin()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow">確認解鎖</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app" class="w-full max-w-xl glass-card rounded-3xl p-4 md:p-7 shadow-2xl relative overflow-hidden my-auto">
+        
+        <!-- Header Banner -->
+        <div class="text-center mb-5 relative">
+            <button onclick="openTeacherModal()" class="absolute right-0 top-0 text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-bold px-3 py-1.5 rounded-full border border-indigo-300 transition flex items-center gap-1 shadow-sm">
+                <span>🍎</span> 老師參戰
+            </button>
+            
+            <div class="inline-flex items-center gap-1.5 bg-yellow-300 text-yellow-950 px-3.5 py-1 rounded-full font-bold text-xs md:text-sm shadow-sm mb-2">
+                <i class="fa-solid fa-bolt text-amber-600"></i>
+                <span>聖公會聖十架小學數學練習</span>
+            </div>
+            <h1 class="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 tracking-wide">
+                ⚡ 閃電乘數王 ⚡
+            </h1>
+            <div class="flex items-center justify-center gap-2 mt-1">
+                <p class="text-gray-600 font-bold text-xs md:text-sm">1位數乘法競速戰 (包括 0 的乘法)</p>
+                <!-- Cloud Status Indicator -->
+                <span id="cloud-status-badge" class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 雲端連線中
+                </span>
+            </div>
+        </div>
+
+        <!-- START / USER REGISTRATION SCREEN -->
+        <div id="screen-start" class="block space-y-4">
+            <div id="teacher-mode-banner" class="hidden bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl p-3.5 text-center relative animate-pulse">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs bg-amber-500 text-white font-black px-2.5 py-0.5 rounded-md">🍎 老師參戰模式已激活</span>
+                    <button onclick="exitTeacherMode()" class="text-xs text-rose-600 font-bold hover:underline">切換回學生模式</button>
+                </div>
+                <p class="text-amber-900 font-black text-lg mt-1" id="teacher-display-name">身份：張老師</p>
+                <p class="text-amber-700 text-xs">準備向同學們展示閃電般的手速吧！</p>
+            </div>
+
+            <div id="student-quote-box" class="bg-gradient-to-r from-indigo-50 to-blue-50 border-2 border-indigo-200 rounded-2xl p-4 text-center relative">
+                <div class="text-3xl mb-1">👨‍🏫</div>
+                <p class="text-indigo-900 font-bold text-base">數學老師叮囑：</p>
+                <p class="text-indigo-700 text-xs md:text-sm mt-0.5 font-medium">「每次只有 5 道題！要小心『 0 × 任何數 = 0 』喔！看看誰能登上極速榜首！」</p>
+            </div>
+
+            <!-- Game Mode Selection -->
+            <div class="bg-white/90 p-3.5 rounded-2xl border-2 border-indigo-100 shadow-sm">
+                <label class="block text-gray-700 font-bold mb-2 text-xs md:text-sm">
+                    <i class="fa-solid fa-gamepad text-indigo-500 mr-1"></i> 選擇挑戰模式 Game Mode
+                </label>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <button type="button" id="mode-btn-input" onclick="selectGameMode('input')" 
+                        class="p-2.5 rounded-xl border-2 border-indigo-500 bg-indigo-50 text-indigo-900 font-bold flex flex-col items-center justify-center transition shadow-sm hover:scale-[1.02]">
+                        <span class="text-2xl mb-0.5">⌨️</span>
+                        <span class="text-xs md:text-sm">標準填空版</span>
+                        <span class="text-[10px] text-indigo-600 font-normal">數字鍵盤輸入</span>
+                    </button>
+                    <button type="button" id="mode-btn-mc" onclick="selectGameMode('mc')" 
+                        class="p-2.5 rounded-xl border-2 border-gray-200 bg-white text-gray-600 font-bold flex flex-col items-center justify-center transition shadow-sm hover:scale-[1.02]">
+                        <span class="text-2xl mb-0.5">🎯</span>
+                        <span class="text-xs md:text-sm">簡易選擇題版</span>
+                        <span class="text-[10px] text-gray-500 font-normal">4選1 (適合初學)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Selection Dropdowns -->
+            <div id="student-select-section" class="space-y-3 bg-white/80 p-4 rounded-2xl shadow-inner border border-gray-100">
+                <div>
+                    <label class="block text-gray-700 font-bold mb-1 text-xs md:text-sm">
+                        <i class="fa-solid fa-school text-indigo-500 mr-1"></i> 學生班別 Class
+                    </label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <select id="select-grade" 
+                            class="w-full px-3 py-2.5 text-sm md:text-base font-bold rounded-xl border-2 border-indigo-200 focus:border-indigo-500 focus:outline-none bg-white shadow-sm text-center">
+                            <option value="">-- 年級 --</option>
+                            <option value="1">1 年級</option>
+                            <option value="2">2 年級</option>
+                            <option value="3">3 年級</option>
+                            <option value="4">4 年級</option>
+                            <option value="5">5 年級</option>
+                            <option value="6">6 年級</option>
+                        </select>
+
+                        <select id="select-class-letter" 
+                            class="w-full px-3 py-2.5 text-sm md:text-base font-bold rounded-xl border-2 border-indigo-200 focus:border-indigo-500 focus:outline-none bg-white shadow-sm text-center">
+                            <option value="">-- 班別 --</option>
+                            <option value="A">A 班</option>
+                            <option value="B">B 班</option>
+                            <option value="C">C 班</option>
+                            <option value="D">D 班</option>
+                            <option value="E">E 班</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 font-bold mb-1 text-xs md:text-sm" for="select-class-no">
+                        <i class="fa-solid fa-hashtag text-indigo-500 mr-1"></i> 學生班號 Class No.
+                    </label>
+                    <select id="select-class-no" 
+                        class="w-full px-4 py-2.5 text-sm md:text-base font-bold rounded-xl border-2 border-indigo-200 focus:border-indigo-500 focus:outline-none bg-white shadow-sm text-center">
+                        <option value="">-- 請選擇班號 (1 - 40) --</option>
+                    </select>
+                </div>
+            </div>
+
+            <button onclick="startGame()" 
+                class="w-full py-3.5 bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white font-black text-lg md:text-xl rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-1 transition duration-150 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-play text-xl"></i>
+                <span id="start-btn-text">開始 5 題閃電挑戰！</span>
+            </button>
+
+            <!-- Mini Leaderboard Preview (Top 10) -->
+            <div class="mt-4 border-t pt-3">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-bold text-gray-700 text-xs md:text-sm flex items-center gap-1.5">
+                        <i class="fa-solid fa-trophy text-amber-500"></i> 排行榜榜首 (Top 10)
+                    </h3>
+                    <button onclick="showLeaderboardScreen()" class="text-xs text-indigo-600 font-bold hover:underline">
+                        查看分級完整榜單 &rarr;
+                    </button>
+                </div>
+                
+                <!-- Grade Filter Tabs for Mini Leaderboard -->
+                <div class="flex gap-1 overflow-x-auto no-scrollbar pb-1.5 text-[11px] font-bold">
+                    <button onclick="setMiniGradeFilter('ALL')" id="mini-grade-ALL" class="px-2.5 py-1 rounded-lg bg-indigo-600 text-white shrink-0">全校總榜</button>
+                    <button onclick="setMiniGradeFilter('1')" id="mini-grade-1" class="px-2.5 py-1 rounded-lg bg-gray-200 text-gray-700 shrink-0">1年級</button>
+                    <button onclick="setMiniGradeFilter('2')" id="mini-grade-2" class="px-2.5 py-1 rounded-lg bg-gray-200 text-gray-700 shrink-0">2年級</button>
+                    <button onclick="setMiniGradeFilter('3')" id="mini-grade-3" class="px-2.5 py-1 rounded-lg bg-gray-200 text-gray-700 shrink-0">3年級</button>
+                    <button onclick="setMiniGradeFilter('4')" id="mini-grade-4" class="px-2.5 py-1 rounded-lg bg-gray-200 text-gray-700 shrink-0">4年級</button>
+                    <button onclick="setMiniGradeFilter('5')" id="mini-grade-5" class="px-2.5 py-1 rounded-lg bg-gray-200 text-gray-700 shrink-0">5年級</button>
+                    <button onclick="setMiniGradeFilter('6')" id="mini-grade-6" class="px-2.5 py-1 rounded-lg bg-gray-200 text-gray-700 shrink-0">6年級</button>
+                    <button onclick="setMiniGradeFilter('TEACHER')" id="mini-grade-TEACHER" class="px-2.5 py-1 rounded-lg bg-gray-200 text-gray-700 shrink-0">教師組</button>
+                </div>
+
+                <div id="mini-leaderboard" class="space-y-1.5 text-xs max-h-48 overflow-y-auto">
+                    <!-- Dynamic mini leaderboard loaded via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- GAME SCREEN -->
+        <div id="screen-game" class="hidden space-y-4">
+            <div class="flex items-center justify-between bg-indigo-900 text-white p-3 md:p-4 rounded-2xl shadow-md">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs md:text-sm bg-indigo-700 px-2.5 py-1 rounded-lg font-bold text-indigo-200" id="game-user-tag">2A 陳小明</span>
+                    <span class="text-xs bg-amber-400 text-amber-950 px-2 py-0.5 rounded-md font-bold" id="game-mode-badge">⌨️ 填空版</span>
+                </div>
+                <div class="text-right">
+                    <div class="text-[10px] text-indigo-300 uppercase font-semibold">總計耗時 Time</div>
+                    <div class="text-2xl md:text-3xl font-black font-mono text-yellow-300" id="timer-display">0.00s</div>
+                </div>
+            </div>
+
+            <div>
+                <div class="flex justify-between text-xs font-bold text-gray-600 mb-1">
+                    <span>進度 Progress</span>
+                    <span id="question-counter" class="text-indigo-600 font-black">第 1 / 5 題</span>
+                </div>
+                <div class="w-full bg-gray-200 h-3 rounded-full overflow-hidden p-0.5 border border-gray-300">
+                    <div id="progress-bar" class="bg-gradient-to-r from-blue-500 to-indigo-600 h-full rounded-full transition-all duration-300" style="width: 20%;"></div>
+                </div>
+            </div>
+
+            <div id="question-card" class="bg-gradient-to-b from-indigo-50 to-white border-4 border-indigo-200 rounded-3xl p-5 text-center shadow-lg relative my-2">
+                <div id="combo-badge" class="opacity-0 transition-opacity duration-300 absolute -top-3 right-4 bg-red-500 text-white font-black text-xs px-3 py-1 rounded-full shadow-md animate-bounce">
+                    🔥 連對 <span id="combo-count">1</span> 題！
+                </div>
+
+                <div class="text-gray-500 font-bold text-xs tracking-wider uppercase mb-1">請計算 Result</div>
+                
+                <div class="flex items-center justify-center gap-2 md:gap-3 text-4xl md:text-6xl font-black text-gray-800 tracking-wider font-mono my-2">
+                    <span id="q-num1" class="text-indigo-600">7</span>
+                    <span class="text-amber-500">×</span>
+                    <span id="q-num2" class="text-indigo-600">8</span>
+                    <span class="text-gray-400">=</span>
+                    <div class="min-w-[65px] md:min-w-[85px] h-[55px] md:h-[70px] bg-white border-4 border-indigo-400 rounded-2xl flex items-center justify-center text-indigo-900 font-bold text-3xl md:text-5xl shadow-inner" id="answer-display">
+                        <span class="text-gray-300 animate-pulse">?</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Virtual On-screen Keypad -->
+            <div id="container-keypad" class="grid grid-cols-3 gap-2 max-w-xs md:max-w-sm mx-auto pt-1">
+                <button onclick="pressKey('1')" class="key-btn bg-white hover:bg-gray-50 text-gray-800 text-2xl font-black py-2.5 rounded-2xl border-2 border-gray-200">1</button>
+                <button onclick="pressKey('2')" class="key-btn bg-white hover:bg-gray-50 text-gray-800 text-2xl font-black py-2.5 rounded-2xl border-2 border-gray-200">2</button>
+                <button onclick="pressKey('3')" class="key-btn bg-white hover:bg-gray-50 text-gray-800 text-2xl font-black py-2.5 rounded-2xl border-2 border-gray-200">3</button>
+
+                <button onclick="pressKey('4')" class="key-btn bg-white hover:bg-gray-50 text-gray-800 text-2xl font-black py-2.5 rounded-2xl border-2 border-gray-200">4</button>
+                <button onclick="pressKey('5')" class="key-btn bg-white hover:bg-gray-50 text-gray-800 text-2xl font-black py-2.5 rounded-2xl border-2 border-gray-200">5</button>
+                <button onclick="pressKey('6')" class="key-btn bg-white hover:bg-gray-50 text-gray-800 text-2xl font-black py-2.5 rounded-2xl border-2 border-gray-200">6</button>
+
+                <button onclick="pressKey('7')" class="key-btn bg-white hover:bg-gray-50 text-gray-800 text-2xl font-black py-2.5 rounded-2xl border-2 border-gray-200">7</button>
+                <button onclick="pressKey('8')" class="key-btn bg-white hover:bg-gray-50 text-gray-800 text-2xl font-black py-2.5 rounded-2xl border-2 border-gray-200">8</button>
+                <button onclick="pressKey('9')" class="key-btn bg-white hover:bg-gray-50 text-gray-800 text-2xl font-black py-2.5 rounded-2xl border-2 border-gray-200">9</button>
+
+                <button onclick="pressKey('clear')" class="key-btn bg-rose-100 hover:bg-rose-200 text-rose-600 text-base font-bold py-2.5 rounded-2xl border-2 border-rose-200">
+                    <i class="fa-solid fa-eraser"></i> 倒退
+                </button>
+                <button onclick="pressKey('0')" class="key-btn bg-white hover:bg-gray-50 text-gray-800 text-2xl font-black py-2.5 rounded-2xl border-2 border-gray-200">0</button>
+                <button onclick="submitAnswer()" class="key-btn bg-emerald-500 hover:bg-emerald-600 text-white text-base font-black py-2.5 rounded-2xl shadow-md border-2 border-emerald-600">
+                    確認 <i class="fa-solid fa-check"></i>
+                </button>
+            </div>
+
+            <!-- Multiple Choice Option Buttons -->
+            <div id="container-mc" class="hidden grid grid-cols-2 gap-2.5 max-w-xs md:max-w-sm mx-auto pt-1">
+            </div>
+
+            <p id="keyboard-hint" class="text-center text-[11px] text-gray-400 mt-1">💡 亦支援實體鍵盤數字鍵輸入與 Enter 鍵提交</p>
+        </div>
+
+        <!-- RESULTS SCREEN -->
+        <div id="screen-result" class="hidden space-y-4 text-center bounce-in">
+            <div class="bg-gradient-to-b from-amber-100 to-yellow-50 p-5 rounded-3xl border-4 border-amber-300 shadow-xl relative">
+                <div class="text-5xl mb-1" id="result-emoji">🏆</div>
+                <h2 class="text-2xl md:text-3xl font-black text-amber-900" id="result-title">極速挑戰完成！</h2>
+                <p class="text-amber-700 font-bold text-xs mt-0.5" id="result-subtitle">成績已實時同步至全校雲端排行榜</p>
+
+                <div class="grid grid-cols-2 gap-2.5 my-4">
+                    <div class="bg-white p-3 rounded-2xl shadow-sm border border-amber-200">
+                        <div class="text-gray-500 text-xs font-bold">總用時 Time</div>
+                        <div class="text-2xl md:text-3xl font-black text-indigo-600 font-mono" id="result-time">0.00s</div>
+                    </div>
+                    <div class="bg-white p-3 rounded-2xl shadow-sm border border-amber-200">
+                        <div class="text-gray-500 text-xs font-bold">答對題數 Accuracy</div>
+                        <div class="text-2xl md:text-3xl font-black text-emerald-600" id="result-accuracy">5 / 5</div>
+                    </div>
+                </div>
+
+                <div class="bg-amber-400 text-amber-950 p-2.5 rounded-2xl font-black text-base md:text-lg flex justify-between items-center px-5 shadow-inner">
+                    <span>競速得分 Speed Score:</span>
+                    <span class="text-2xl font-mono" id="result-score">9,850</span>
+                </div>
+
+                <div class="mt-3 text-xs bg-white/80 p-2.5 rounded-xl border border-amber-200 text-amber-900 font-medium italic" id="result-feedback">
+                    「太棒了！你手速快如閃電，繼續保持！」
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <button onclick="startGame()" 
+                    class="w-full py-3.5 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-black text-lg md:text-xl rounded-2xl shadow-lg hover:shadow-xl transition transform active:scale-95 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>再玩一次！挑戰更高分</span>
+                </button>
+
+                <button onclick="showLeaderboardScreen()" 
+                    class="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm rounded-2xl border border-gray-300 transition">
+                    <i class="fa-solid fa-list-ol mr-1"></i> 查看分級排行榜 Leaderboard
+                </button>
+            </div>
+        </div>
+
+        <!-- LEADERBOARD SCREEN (WITH GRADE FILTERS AND TOP 10) -->
+        <div id="screen-leaderboard" class="hidden space-y-3">
+            <div class="flex items-center justify-between border-b pb-2">
+                <h2 class="text-xl md:text-2xl font-black text-gray-800 flex items-center gap-2">
+                    <i class="fa-solid fa-trophy text-amber-500"></i> 極速乘數榜 (Top 10)
+                </h2>
+                <button onclick="showStartScreen()" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1">
+                    <i class="fa-solid fa-house"></i> 返回主頁
+                </button>
+            </div>
+
+            <!-- Mode Filter Tabs -->
+            <div class="flex gap-2">
+                <button onclick="switchLeaderboardTab('input')" id="tab-leaderboard-input" 
+                    class="flex-1 py-1.5 rounded-xl font-bold text-xs md:text-sm bg-indigo-600 text-white transition shadow-sm">
+                    ⌨️ 標準填空榜
+                </button>
+                <button onclick="switchLeaderboardTab('mc')" id="tab-leaderboard-mc" 
+                    class="flex-1 py-1.5 rounded-xl font-bold text-xs md:text-sm bg-gray-200 text-gray-700 transition hover:bg-gray-300">
+                    🎯 簡易選擇題榜
+                </button>
+            </div>
+
+            <!-- Grade Filter Tabs -->
+            <div class="flex gap-1 overflow-x-auto no-scrollbar py-1 text-xs font-bold">
+                <button onclick="setMainGradeFilter('ALL')" id="main-grade-ALL" class="px-3 py-1.5 rounded-xl bg-indigo-600 text-white shrink-0">全校總榜</button>
+                <button onclick="setMainGradeFilter('1')" id="main-grade-1" class="px-3 py-1.5 rounded-xl bg-gray-200 text-gray-700 shrink-0">1年級</button>
+                <button onclick="setMainGradeFilter('2')" id="main-grade-2" class="px-3 py-1.5 rounded-xl bg-gray-200 text-gray-700 shrink-0">2年級</button>
+                <button onclick="setMainGradeFilter('3')" id="main-grade-3" class="px-3 py-1.5 rounded-xl bg-gray-200 text-gray-700 shrink-0">3年級</button>
+                <button onclick="setMainGradeFilter('4')" id="main-grade-4" class="px-3 py-1.5 rounded-xl bg-gray-200 text-gray-700 shrink-0">4年級</button>
+                <button onclick="setMainGradeFilter('5')" id="main-grade-5" class="px-3 py-1.5 rounded-xl bg-gray-200 text-gray-700 shrink-0">5年級</button>
+                <button onclick="setMainGradeFilter('6')" id="main-grade-6" class="px-3 py-1.5 rounded-xl bg-gray-200 text-gray-700 shrink-0">6年級</button>
+                <button onclick="setMainGradeFilter('TEACHER')" id="main-grade-TEACHER" class="px-3 py-1.5 rounded-xl bg-gray-200 text-gray-700 shrink-0">教師組</button>
+            </div>
+
+            <p class="text-[11px] text-gray-500">排名規則：優先比較【答對題數 (5/5)】，其次比較【總用時 (越快越高)】。實時跨裝置同步！</p>
+
+            <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-inner max-h-[340px] overflow-y-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-indigo-50 text-indigo-900 text-xs font-bold uppercase sticky top-0 z-10">
+                        <tr>
+                            <th class="p-2.5 text-center">名次</th>
+                            <th class="p-2.5">學生 / 老師</th>
+                            <th class="p-2.5 text-center">時間</th>
+                            <th class="p-2.5 text-right">得分</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-table-body" class="divide-y divide-gray-100 text-xs md:text-sm font-medium">
+                        <!-- Populated by Javascript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pt-1">
+                <button onclick="startGame()" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-base md:text-lg rounded-xl shadow transition text-center flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rocket"></i>
+                    <span>開啟全新挑戰</span>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Web Audio API Sound Synthesizer
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            } catch (e) {
+                console.log("Audio Context Error:", e);
+            }
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            try {
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'click') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                } else if (type === 'correct') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.08);
+                    osc.frequency.setValueAtTime(783.99, now + 0.16);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'wrong') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.linearRampToValueAtTime(110, now + 0.2);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                } else if (type === 'finish') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.1);
+                    osc.frequency.setValueAtTime(783.99, now + 0.2);
+                    osc.frequency.setValueAtTime(1046.50, now + 0.3);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                }
+            } catch (e) {
+                console.log("Play Sound Error:", e);
+            }
+        }
+
+        function showNotification(msg) {
+            const notif = document.getElementById('custom-toast');
+            document.getElementById('toast-msg').innerText = msg;
+            notif.classList.remove('hidden');
+            setTimeout(() => {
+                notif.classList.add('hidden');
+            }, 2500);
+        }
+
+        // Teacher Verification Logic
+        let isTeacherMode = false;
+        let teacherInfo = { title: "" };
+
+        function openTeacherModal() {
+            document.getElementById('teacher-pin-input').value = "";
+            document.getElementById('teacher-modal').classList.remove('hidden');
+        }
+
+        function closeTeacherModal() {
+            document.getElementById('teacher-modal').classList.add('hidden');
+        }
+
+        function verifyTeacherPin() {
+            const pin = document.getElementById('teacher-pin-input').value.trim();
+            if (pin === "4931") {
+                const title = document.getElementById('teacher-title-select').value;
+                isTeacherMode = true;
+                teacherInfo.title = title;
+
+                document.getElementById('teacher-display-name').innerText = `參戰身份：🍎 ${title}`;
+                document.getElementById('teacher-mode-banner').classList.remove('hidden');
+                document.getElementById('student-select-section').classList.add('hidden');
+                document.getElementById('student-quote-box').classList.add('hidden');
+
+                closeTeacherModal();
+                showNotification(`已成功解鎖：${title} 參戰！`);
+            } else {
+                showNotification("解鎖密碼不正確！");
+            }
+        }
+
+        function exitTeacherMode() {
+            isTeacherMode = false;
+            document.getElementById('teacher-mode-banner').classList.add('hidden');
+            document.getElementById('student-select-section').classList.remove('hidden');
+            document.getElementById('student-quote-box').classList.remove('hidden');
+            showNotification("已切換回學生模式");
+        }
+
+        // Leaderboard State
+        let leaderboards = {
+            input: [],
+            mc: []
+        };
+
+        let currentGameMode = 'input';
+        let activeLeaderboardTab = 'input';
+        let activeMiniGradeFilter = 'ALL';
+        let activeMainGradeFilter = 'ALL';
+
+        let currentStudent = { className: "", classNo: "", grade: "1", isTeacher: false };
+        let currentQuestions = [];
+        let currentQuestionIndex = 0;
+        let currentInput = "";
+        let correctAnswersCount = 0;
+        let comboStreak = 0;
+        let timerInterval = null;
+        let startTime = 0;
+        let elapsedTime = 0;
+
+        // Universal Cloud Sync Architecture with Smart Data Preservation
+        let isCloudConnected = false;
+        const APP_CLOUD_KEY = 'skh_hcps_math_v2';
+
+        function checkSandboxEnvironment() {
+            let isRestricted = false;
+            try {
+                // Check if localStorage is blocked
+                localStorage.setItem('__test_key__', '1');
+                localStorage.removeItem('__test_key__');
+            } catch (e) {
+                isRestricted = true;
+            }
+
+            // Check if inside Google Drive iframe preview
+            if (window.self !== window.top && isRestricted) {
+                document.getElementById('sandbox-warning-banner').classList.remove('hidden');
+            }
+        }
+
+        async function initCloudSync() {
+            checkSandboxEnvironment();
+            
+            // 1. ALWAYS load local memory first so no existing local scores are lost
+            loadLeaderboardFromStorage();
+            renderMiniLeaderboard();
+            renderLeaderboardTable();
+
+            const badge = document.getElementById('cloud-status-badge');
+            
+            // 2. Try Firebase dynamic environment if available
+            try {
+                const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'skh-math-multiplication';
+
+                if (firebaseConfigStr) {
+                    const firebaseConfig = JSON.parse(firebaseConfigStr);
+                    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+                    const { getAuth, signInAnonymously, signInWithCustomToken } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+                    const { getFirestore, collection, addDoc, onSnapshot } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+
+                    const app = initializeApp(firebaseConfig);
+                    const auth = getAuth(app);
+                    const db = getFirestore(app);
+
+                    const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                    if (authToken) {
+                        await signInWithCustomToken(auth, authToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+
+                    if (auth.currentUser) {
+                        const scoresRef = collection(db, 'artifacts', appId, 'public', 'data', 'scores');
+                        onSnapshot(scoresRef, (snapshot) => {
+                            const inputList = [];
+                            const mcList = [];
+                            snapshot.forEach(docSnap => {
+                                const data = docSnap.data();
+                                if (data.mode === 'input') inputList.push(data);
+                                else if (data.mode === 'mc') mcList.push(data);
+                            });
+
+                            mergeAndSortScores(inputList, mcList);
+                        }, (err) => console.log("Firebase listener error:", err));
+
+                        window._cloudSaveFn = async (docData) => {
+                            await addDoc(scoresRef, docData);
+                        };
+                        isCloudConnected = true;
+                        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 雲端連線中`;
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.log("Firebase not initialized, proceeding with fallback cloud relay:", e);
+            }
+
+            // 3. Fallback Cloud Relay for GitHub Pages & Web
+            try {
+                await fetchCloudRelayScores();
+                setInterval(fetchCloudRelayScores, 8000); // Fetch periodically
+                isCloudConnected = true;
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 雲端連線中`;
+            } catch (err) {
+                console.log("Cloud relay offline, keeping local persistence:", err);
+                badge.className = "text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-300 flex items-center gap-1";
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> 本機備份模式`;
+            }
+        }
+
+        function mergeAndSortScores(cloudInput = [], cloudMc = []) {
+            const sortFn = (a, b) => (b.correct !== a.correct) ? (b.correct - a.correct) : (b.score - a.score);
+
+            // Deduplicate logic using unique key
+            const generateUniqueKey = (item) => `${item.className}_${item.classNo}_${item.score}_${item.time}_${item.date}`;
+
+            const inputMap = new Map();
+            // Combine local and incoming cloud records safely
+            [...leaderboards.input, ...cloudInput].forEach(item => {
+                if (item && item.className) {
+                    inputMap.set(generateUniqueKey(item), item);
+                }
+            });
+            leaderboards.input = Array.from(inputMap.values()).sort(sortFn).slice(0, 100);
+
+            const mcMap = new Map();
+            [...leaderboards.mc, ...cloudMc].forEach(item => {
+                if (item && item.className) {
+                    mcMap.set(generateUniqueKey(item), item);
+                }
+            });
+            leaderboards.mc = Array.from(mcMap.values()).sort(sortFn).slice(0, 100);
+
+            saveLeaderboardToStorage();
+            renderMiniLeaderboard();
+            renderLeaderboardTable();
+        }
+
+        async function fetchCloudRelayScores() {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
+
+                const res = await fetch(`https://keyvalue.openkv.space/get/${APP_CLOUD_KEY}`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && typeof data === 'object') {
+                        mergeAndSortScores(data.input || [], data.mc || []);
+                    }
+                }
+            } catch (e) {
+                // If fetch fails, keep local records intact
+            }
+        }
+
+        async function saveCloudRelayScores(entry, mode) {
+            // Immediately add to local memory
+            leaderboards[mode].push(entry);
+            const sortFn = (a, b) => (b.correct !== a.correct) ? (b.correct - a.correct) : (b.score - a.score);
+            leaderboards[mode].sort(sortFn);
+
+            // Save to browser LocalStorage securely
+            saveLeaderboardToStorage();
+
+            // Save to Firebase Cloud if available
+            if (window._cloudSaveFn) {
+                try {
+                    await window._cloudSaveFn(entry);
+                } catch (e) {
+                    console.log("Firebase save error:", e);
+                }
+            }
+
+            // Save to Universal Key-Value Relay
+            try {
+                await fetch(`https://keyvalue.openkv.space/set/${APP_CLOUD_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        input: leaderboards.input.slice(0, 100),
+                        mc: leaderboards.mc.slice(0, 100)
+                    })
+                });
+            } catch (e) {
+                console.log("Cloud relay save error:", e);
+            }
+
+            renderMiniLeaderboard();
+            renderLeaderboardTable();
+        }
+
+        function saveLeaderboardToStorage() {
+            try {
+                localStorage.setItem('hk_math_multiplication_input', JSON.stringify(leaderboards.input));
+                localStorage.setItem('hk_math_multiplication_mc', JSON.stringify(leaderboards.mc));
+            } catch (e) {
+                console.warn("LocalStorage save restricted by browser sandbox");
+            }
+        }
+
+        function loadLeaderboardFromStorage() {
+            try {
+                const storedInput = localStorage.getItem('hk_math_multiplication_input');
+                if (storedInput) {
+                    const parsed = JSON.parse(storedInput);
+                    if (Array.isArray(parsed)) leaderboards.input = parsed;
+                }
+
+                const storedMc = localStorage.getItem('hk_math_multiplication_mc');
+                if (storedMc) {
+                    const parsed = JSON.parse(storedMc);
+                    if (Array.isArray(parsed)) leaderboards.mc = parsed;
+                }
+            } catch (e) {
+                console.warn("LocalStorage read restricted");
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initClassNoOptions();
+            initCloudSync();
+            window.addEventListener('keydown', handlePhysicalKeyboard);
+        });
+
+        function initClassNoOptions() {
+            const selectNo = document.getElementById('select-class-no');
+            selectNo.innerHTML = '<option value="">-- 請選擇班號 (1 - 40) --</option>';
+            for (let i = 1; i <= 40; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = `${i} 號`;
+                selectNo.appendChild(opt);
+            }
+        }
+
+        function selectGameMode(mode) {
+            currentGameMode = mode;
+            const btnInput = document.getElementById('mode-btn-input');
+            const btnMc = document.getElementById('mode-btn-mc');
+
+            if (mode === 'input') {
+                btnInput.className = "p-2.5 rounded-xl border-2 border-indigo-500 bg-indigo-50 text-indigo-900 font-bold flex flex-col items-center justify-center transition shadow-sm hover:scale-[1.02]";
+                btnMc.className = "p-2.5 rounded-xl border-2 border-gray-200 bg-white text-gray-600 font-bold flex flex-col items-center justify-center transition shadow-sm hover:scale-[1.02]";
+            } else {
+                btnMc.className = "p-2.5 rounded-xl border-2 border-indigo-500 bg-indigo-50 text-indigo-900 font-bold flex flex-col items-center justify-center transition shadow-sm hover:scale-[1.02]";
+                btnInput.className = "p-2.5 rounded-xl border-2 border-gray-200 bg-white text-gray-600 font-bold flex flex-col items-center justify-center transition shadow-sm hover:scale-[1.02]";
+            }
+
+            renderMiniLeaderboard();
+        }
+
+        function generateQuestions() {
+            const questions = [];
+            const zeroInFirst = Math.floor(Math.random() * 5);
+
+            for (let i = 0; i < 5; i++) {
+                let num1, num2;
+                if (i === zeroInFirst) {
+                    num1 = Math.random() < 0.5 ? 0 : Math.floor(Math.random() * 10);
+                    num2 = num1 === 0 ? Math.floor(Math.random() * 10) : 0;
+                } else {
+                    num1 = Math.floor(Math.random() * 10);
+                    num2 = Math.floor(Math.random() * 10);
+                }
+                
+                const answer = num1 * num2;
+                const options = generateMCOptions(answer, num1, num2);
+                questions.push({ num1, num2, answer, options });
+            }
+            return questions;
+        }
+
+        function generateMCOptions(correctAnswer, num1, num2) {
+            const optionsSet = new Set([correctAnswer]);
+            const candidates = [
+                correctAnswer + 1, correctAnswer - 1,
+                correctAnswer + 2, correctAnswer - 2,
+                correctAnswer + 10, correctAnswer - 10,
+                num1 + num2, (num1 + 1) * num2, num1 * (num2 + 1)
+            ];
+
+            for (let c of candidates) {
+                if (c >= 0 && c <= 81 && c !== correctAnswer) {
+                    optionsSet.add(c);
+                }
+                if (optionsSet.size === 4) break;
+            }
+
+            while (optionsSet.size < 4) {
+                optionsSet.add(Math.floor(Math.random() * 82));
+            }
+
+            return Array.from(optionsSet).sort(() => Math.random() - 0.5);
+        }
+
+        function startTimer() {
+            startTime = performance.now();
+            timerInterval = setInterval(() => {
+                elapsedTime = (performance.now() - startTime) / 1000;
+                document.getElementById('timer-display').innerText = elapsedTime.toFixed(2) + 's';
+            }, 30);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function showScreen(screenId) {
+            ['screen-start', 'screen-game', 'screen-result', 'screen-leaderboard'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        function startGame() {
+            initAudio();
+
+            if (isTeacherMode) {
+                currentStudent.className = `🍎 ${teacherInfo.title}`;
+                currentStudent.classNo = "教職員";
+                currentStudent.grade = "TEACHER";
+                currentStudent.isTeacher = true;
+            } else {
+                const grade = document.getElementById('select-grade').value;
+                const classLetter = document.getElementById('select-class-letter').value;
+                const classNo = document.getElementById('select-class-no').value;
+
+                if (!grade || !classLetter || !classNo) {
+                    showNotification('請完整選擇年級、班別及班號！');
+                    return;
+                }
+
+                currentStudent.className = `${grade}${classLetter}`;
+                currentStudent.classNo = `${classNo}號`;
+                currentStudent.grade = grade;
+                currentStudent.isTeacher = false;
+            }
+
+            document.getElementById('game-user-tag').innerText = isTeacherMode ? `${currentStudent.className}` : `${currentStudent.className} (${currentStudent.classNo})`;
+            document.getElementById('game-mode-badge').innerText = currentGameMode === 'input' ? '⌨️ 填空版' : '🎯 選擇題版';
+
+            if (currentGameMode === 'input') {
+                document.getElementById('container-keypad').classList.remove('hidden');
+                document.getElementById('container-mc').classList.add('hidden');
+                document.getElementById('keyboard-hint').classList.remove('hidden');
+            } else {
+                document.getElementById('container-keypad').classList.add('hidden');
+                document.getElementById('container-mc').classList.remove('hidden');
+                document.getElementById('keyboard-hint').classList.add('hidden');
+            }
+
+            currentQuestions = generateQuestions();
+            currentQuestionIndex = 0;
+            correctAnswersCount = 0;
+            comboStreak = 0;
+            currentInput = "";
+            elapsedTime = 0;
+
+            renderCurrentQuestion();
+            showScreen('screen-game');
+            startTimer();
+        }
+
+        function renderCurrentQuestion() {
+            const q = currentQuestions[currentQuestionIndex];
+            document.getElementById('q-num1').innerText = q.num1;
+            document.getElementById('q-num2').innerText = q.num2;
+            document.getElementById('question-counter').innerText = `第 ${currentQuestionIndex + 1} / 5 題`;
+            
+            const pct = ((currentQuestionIndex + 1) / 5) * 100;
+            document.getElementById('progress-bar').style.width = pct + '%';
+
+            currentInput = "";
+            updateAnswerDisplay();
+
+            if (currentGameMode === 'mc') {
+                const mcContainer = document.getElementById('container-mc');
+                mcContainer.innerHTML = q.options.map(opt => `
+                    <button onclick="selectMCOption(${opt})" 
+                        class="key-btn bg-white hover:bg-indigo-50 active:bg-indigo-100 text-indigo-950 font-black text-2xl py-3.5 rounded-2xl border-2 border-indigo-200 shadow-sm flex items-center justify-center">
+                        ${opt}
+                    </button>
+                `).join('');
+            }
+
+            const comboBadge = document.getElementById('combo-badge');
+            if (comboStreak >= 2) {
+                document.getElementById('combo-count').innerText = comboStreak;
+                comboBadge.classList.remove('opacity-0');
+            } else {
+                comboBadge.classList.add('opacity-0');
+            }
+        }
+
+        function pressKey(val) {
+            initAudio();
+            playSound('click');
+
+            if (val === 'clear') {
+                currentInput = currentInput.slice(0, -1);
+            } else if (currentInput.length < 2) {
+                currentInput += val;
+            }
+            updateAnswerDisplay();
+        }
+
+        function updateAnswerDisplay() {
+            const display = document.getElementById('answer-display');
+            if (currentInput === "") {
+                display.innerHTML = `<span class="text-gray-300 animate-pulse">?</span>`;
+            } else {
+                display.innerHTML = `<span class="text-indigo-900 font-bold">${currentInput}</span>`;
+            }
+        }
+
+        function selectMCOption(val) {
+            currentInput = val.toString();
+            updateAnswerDisplay();
+            submitAnswer();
+        }
+
+        function submitAnswer() {
+            if (currentInput === "") return;
+
+            initAudio();
+            const q = currentQuestions[currentQuestionIndex];
+            const userAnswer = parseInt(currentInput, 10);
+            const card = document.getElementById('question-card');
+
+            if (userAnswer === q.answer) {
+                playSound('correct');
+                correctAnswersCount++;
+                comboStreak++;
+            } else {
+                playSound('wrong');
+                comboStreak = 0;
+                card.classList.add('shake');
+                setTimeout(() => card.classList.remove('shake'), 400);
+            }
+
+            currentQuestionIndex++;
+            if (currentQuestionIndex < 5) {
+                renderCurrentQuestion();
+            } else {
+                finishGame();
+            }
+        }
+
+        function handlePhysicalKeyboard(e) {
+            if (document.getElementById('screen-game').classList.contains('hidden')) return;
+            if (currentGameMode !== 'input') return;
+
+            if (e.key >= '0' && e.key <= '9') {
+                pressKey(e.key);
+            } else if (e.key === 'Backspace') {
+                pressKey('clear');
+            } else if (e.key === 'Enter') {
+                submitAnswer();
+            }
+        }
+
+        function finishGame() {
+            stopTimer();
+            playSound('finish');
+
+            const basePoints = correctAnswersCount * 2000;
+            const perfectBonus = (correctAnswersCount === 5) ? 2000 : 0;
+            const timeDeduction = Math.floor(elapsedTime * 150);
+            const finalScore = Math.max(0, basePoints + perfectBonus - timeDeduction);
+
+            if (correctAnswersCount === 5) {
+                confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+            }
+
+            document.getElementById('result-time').innerText = elapsedTime.toFixed(2) + 's';
+            document.getElementById('result-accuracy').innerText = `${correctAnswersCount} / 5`;
+            document.getElementById('result-score').innerText = finalScore.toLocaleString();
+
+            const emojiEl = document.getElementById('result-emoji');
+            const titleEl = document.getElementById('result-title');
+            const feedbackEl = document.getElementById('result-feedback');
+
+            if (correctAnswersCount === 5) {
+                emojiEl.innerText = "⚡⚡";
+                titleEl.innerText = isTeacherMode ? "🍎 老師示範！" : "神速閃電王！";
+                feedbackEl.innerText = isTeacherMode ? "「老師展現了極致手速！看看誰能超越老師！」" : "「簡直不可思議！完美的 5/5 全對！」";
+            } else {
+                emojiEl.innerText = "🌟";
+                titleEl.innerText = "挑戰完成！";
+                feedbackEl.innerText = "「做得好！再練習一次，下次一定能更快！」";
+            }
+
+            saveCloudRelayScores({
+                className: currentStudent.className,
+                classNo: currentStudent.classNo,
+                grade: currentStudent.grade,
+                isTeacher: currentStudent.isTeacher,
+                time: parseFloat(elapsedTime.toFixed(2)),
+                correct: correctAnswersCount,
+                score: finalScore,
+                mode: currentGameMode,
+                date: new Date().toLocaleDateString('zh-HK', { month: '2-digit', day: '2-digit' })
+            }, currentGameMode);
+
+            showScreen('screen-result');
+        }
+
+        function setMiniGradeFilter(grade) {
+            activeMiniGradeFilter = grade;
+            const grades = ['ALL', '1', '2', '3', '4', '5', '6', 'TEACHER'];
+            grades.forEach(g => {
+                const btn = document.getElementById(`mini-grade-${g}`);
+                if (btn) {
+                    if (g === grade) {
+                        btn.className = "px-2.5 py-1 rounded-lg bg-indigo-600 text-white shrink-0";
+                    } else {
+                        btn.className = "px-2.5 py-1 rounded-lg bg-gray-200 text-gray-700 shrink-0 hover:bg-gray-300";
+                    }
+                }
+            });
+            renderMiniLeaderboard();
+        }
+
+        function renderMiniLeaderboard() {
+            const container = document.getElementById('mini-leaderboard');
+            const fullList = leaderboards[currentGameMode] || [];
+
+            let filtered = fullList;
+            if (activeMiniGradeFilter === 'TEACHER') {
+                filtered = fullList.filter(item => item.isTeacher);
+            } else if (activeMiniGradeFilter !== 'ALL') {
+                filtered = fullList.filter(item => !item.isTeacher && item.grade === activeMiniGradeFilter);
+            }
+            
+            // Limit to Top 10
+            const top10 = filtered.slice(0, 10);
+
+            if (top10.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-2.5 text-gray-400 text-xs font-bold bg-white/60 rounded-xl border border-dashed border-gray-300">
+                        ⚡ 該類別暫無挑戰紀錄，快成為第一個閃電王吧！
+                    </div>
+                `;
+                return;
+            }
+
+            const medals = ['🥇', '🥈', '🥉'];
+            container.innerHTML = top10.map((item, index) => `
+                <div class="flex justify-between items-center ${item.isTeacher ? 'bg-amber-50 border-amber-300' : 'bg-white border-gray-100'} p-2 rounded-xl border shadow-sm">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm">${medals[index] || index + 1}</span>
+                        <span class="font-bold text-gray-800">${item.className} ${item.isTeacher ? '' : `(${item.classNo})`}</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="font-mono text-indigo-600 font-black">${item.time.toFixed(2)}s</span>
+                        <span class="text-[11px] text-emerald-600 font-bold ml-1">(${item.correct}/5)</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function switchLeaderboardTab(mode) {
+            activeLeaderboardTab = mode;
+            const tabInput = document.getElementById('tab-leaderboard-input');
+            const tabMc = document.getElementById('tab-leaderboard-mc');
+
+            if (mode === 'input') {
+                tabInput.className = "flex-1 py-1.5 rounded-xl font-bold text-xs md:text-sm bg-indigo-600 text-white transition shadow-sm";
+                tabMc.className = "flex-1 py-1.5 rounded-xl font-bold text-xs md:text-sm bg-gray-200 text-gray-700 transition hover:bg-gray-300";
+            } else {
+                tabMc.className = "flex-1 py-1.5 rounded-xl font-bold text-xs md:text-sm bg-indigo-600 text-white transition shadow-sm";
+                tabInput.className = "flex-1 py-1.5 rounded-xl font-bold text-xs md:text-sm bg-gray-200 text-gray-700 transition hover:bg-gray-300";
+            }
+
+            renderLeaderboardTable();
+        }
+
+        function setMainGradeFilter(grade) {
+            activeMainGradeFilter = grade;
+            const grades = ['ALL', '1', '2', '3', '4', '5', '6', 'TEACHER'];
+            grades.forEach(g => {
+                const btn = document.getElementById(`main-grade-${g}`);
+                if (btn) {
+                    if (g === grade) {
+                        btn.className = "px-3 py-1.5 rounded-xl bg-indigo-600 text-white shrink-0";
+                    } else {
+                        btn.className = "px-3 py-1.5 rounded-xl bg-gray-200 text-gray-700 shrink-0";
+                    }
+                }
+            });
+            renderLeaderboardTable();
+        }
+
+        function renderLeaderboardTable() {
+            const tbody = document.getElementById('leaderboard-table-body');
+            const fullList = leaderboards[activeLeaderboardTab] || [];
+
+            let filtered = fullList;
+            if (activeMainGradeFilter === 'TEACHER') {
+                filtered = fullList.filter(item => item.isTeacher);
+            } else if (activeMainGradeFilter !== 'ALL') {
+                filtered = fullList.filter(item => !item.isTeacher && item.grade === activeMainGradeFilter);
+            }
+
+            // Limit to Top 10
+            const top10 = filtered.slice(0, 10);
+
+            if (top10.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center py-6 text-gray-400 font-bold text-xs md:text-sm">
+                            <i class="fa-solid fa-trophy text-2xl text-amber-300 mb-1 block"></i>
+                            該分級暫無紀錄，快來進行第一次挑戰吧！
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = top10.map((item, index) => {
+                let rankBadge = `${index + 1}`;
+                if (index === 0) rankBadge = '🥇 1';
+                if (index === 1) rankBadge = '🥈 2';
+                if (index === 2) rankBadge = '🥉 3';
+
+                const displayLabel = item.isTeacher ? item.className : `${item.className} (${item.classNo})`;
+
+                return `
+                    <tr class="${item.isTeacher ? 'bg-amber-50/80 border-l-4 border-amber-400' : 'hover:bg-gray-50'} transition">
+                        <td class="p-2.5 text-center font-bold text-gray-700">${rankBadge}</td>
+                        <td class="p-2.5">
+                            <div class="font-bold text-gray-800 flex items-center gap-1">
+                                ${displayLabel}
+                            </div>
+                            <div class="text-[10px] text-gray-400">${item.date || '今日'}</div>
+                        </td>
+                        <td class="p-2.5 text-center">
+                            <div class="font-mono font-bold text-indigo-600">${item.time.toFixed(2)}s</div>
+                            <div class="text-[11px] text-emerald-600 font-semibold">${item.correct}/5對</div>
+                        </td>
+                        <td class="p-2.5 text-right font-mono font-black text-amber-600">${item.score.toLocaleString()}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function showLeaderboardScreen() {
+            activeLeaderboardTab = currentGameMode;
+            switchLeaderboardTab(activeLeaderboardTab);
+            setMainGradeFilter('ALL');
+            showScreen('screen-leaderboard');
+        }
+
+        function showStartScreen() {
+            showScreen('screen-start');
+        }
+    </script>
+</body>
+</html>
