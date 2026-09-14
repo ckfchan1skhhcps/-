@@ -66,12 +66,45 @@
         <span id="toast-msg">請完整選擇年級、班別及班號！</span>
     </div>
 
+    <!-- Diagnostic & Network Info Modal -->
+    <div id="debug-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="text-xl font-black text-indigo-900 flex items-center gap-2">
+                    <i class="fa-solid fa-network-wired text-indigo-600"></i> 雲端連線診斷報告
+                </h3>
+                <button onclick="closeDebugModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+            </div>
+            
+            <div class="space-y-2 text-xs font-mono bg-gray-900 text-emerald-400 p-4 rounded-2xl overflow-x-auto max-h-60" id="debug-log-box">
+                <p>> 正在檢測網絡連線...</p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 font-medium">
+                <p class="font-bold mb-1">💡 電話無法同步的排除步驟：</p>
+                <ol class="list-decimal list-inside space-y-1">
+                    <li>請確認電話非處於「無痕模式」或「低電量省電模式」。</li>
+                    <li>若在 Classroom App 開啟，請點右下角轉用 <b>Safari / Chrome</b>。</li>
+                    <li>可點擊下方的「強制重設並同步」按鈕重試。</li>
+                </ol>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="forceReSync()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow">
+                    <i class="fa-solid fa-rotate"></i> 強制重新連線同步
+                </button>
+                <button onclick="closeDebugModal()" class="py-2.5 px-4 bg-gray-200 text-gray-700 font-bold rounded-xl text-xs">關閉</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Sandbox Warning Banner -->
     <div id="sandbox-warning-banner" class="hidden fixed top-0 left-0 right-0 z-50 bg-amber-500 text-amber-950 px-4 py-2 text-xs md:text-sm font-bold text-center shadow-lg flex items-center justify-center gap-2">
         <i class="fa-solid fa-triangle-exclamation text-base"></i>
         <span>警告：正在預覽模式或App內建視窗中開啟！建議使用「 Safari / Chrome 瀏覽器」開啟以確保排行榜正常同步。</span>
     </div>
 
+    <!-- Teacher Modal -->
     <div id="teacher-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl space-y-4">
             <div class="text-4xl">🍎</div>
@@ -180,9 +213,9 @@
             </h1>
             <div class="flex items-center justify-center gap-2 mt-1">
                 <p class="text-gray-600 font-bold text-xs md:text-sm">1位數乘法競速戰 (包括 0 的乘法)</p>
-                <!-- Cloud Status Indicator -->
-                <button onclick="manualCloudSync()" id="cloud-status-badge" class="text-[10px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 cursor-pointer transition">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 雲端連線中 (點擊同步)
+                <!-- Cloud Status Indicator & Diagnostics -->
+                <button onclick="openDebugModal()" id="cloud-status-badge" class="text-[10px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 cursor-pointer transition">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 雲端連線中 (診斷)
                 </button>
             </div>
         </div>
@@ -564,6 +597,53 @@
             }, 2500);
         }
 
+        // Diagnostic Modal Functions
+        function openDebugModal() {
+            document.getElementById('debug-modal').classList.remove('hidden');
+            runNetworkDiagnostics();
+        }
+
+        function closeDebugModal() {
+            document.getElementById('debug-modal').classList.add('hidden');
+        }
+
+        function logDebug(msg) {
+            const box = document.getElementById('debug-log-box');
+            box.innerHTML += `<p>> ${msg}</p>`;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        async function runNetworkDiagnostics() {
+            const box = document.getElementById('debug-log-box');
+            box.innerHTML = `<p>> 開始檢測裝置與雲端網絡連線...</p>`;
+            logDebug(`裝置環境: ${navigator.userAgent.includes('Mobile') ? '📱 流動裝置 (Mobile)' : '💻 電腦 (Desktop)'}`);
+            logDebug(`獨立視窗模式: ${window.self === window.top ? '✅ 是 (Standard Browser)' : '⚠️ 否 (In-App Browser / Iframe)'}`);
+
+            for (let i = 0; i < CLOUD_RELAYS.length; i++) {
+                const relay = CLOUD_RELAYS[i];
+                logDebug(`測試雲端通道 ${i+1}: ${relay.name}...`);
+                const startTime = Date.now();
+                try {
+                    const res = await fetch(`${relay.get}?t=${Date.now()}`, { method: 'GET', cache: 'no-store' });
+                    const duration = Date.now() - startTime;
+                    if (res.ok) {
+                        logDebug(`🟢 通道 ${i+1} 成功連線! 延遲: ${duration}ms`);
+                    } else {
+                        logDebug(`🔴 通道 ${i+1} 回應狀態碼: ${res.status}`);
+                    }
+                } catch (err) {
+                    logDebug(`❌ 通道 ${i+1} 連線失敗: ${err.message}`);
+                }
+            }
+        }
+
+        async function forceReSync() {
+            logDebug("開始強制重新發起雙向同步...");
+            await fetchCloudRelayScores();
+            logDebug("強制同步指令執行完畢！");
+            showNotification("✅ 強制連線同步完成！");
+        }
+
         // Teacher Verification Logic
         let isTeacherMode = false;
         let teacherInfo = { title: "" };
@@ -625,10 +705,20 @@
         let startTime = 0;
         let elapsedTime = 0;
 
-        // Mobile-Optimized Multi-Cloud Sync Architecture
-        const APP_CLOUD_KEY = 'skh_hcps_math_v2';
-        const PRIMARY_RELAY = `https://keyvalue.openkv.space/get/${APP_CLOUD_KEY}`;
-        const SET_RELAY = `https://keyvalue.openkv.space/set/${APP_CLOUD_KEY}`;
+        // Mobile-Optimized Multi-Cloud Architecture (Dual Relays with Fallback)
+        const APP_KEY = 'skh_hcps_math_v3';
+        const CLOUD_RELAYS = [
+            {
+                name: "Primary OpenKV",
+                get: `https://keyvalue.openkv.space/get/${APP_KEY}`,
+                set: `https://keyvalue.openkv.space/set/${APP_KEY}`
+            },
+            {
+                name: "Secondary KVDB",
+                get: `https://kvdb.io/4yC8M5n2o9P3zX1b7v8w9q/${APP_KEY}`,
+                set: `https://kvdb.io/4yC8M5n2o9P3zX1b7v8w9q/${APP_KEY}`
+            }
+        ];
 
         function checkSandboxEnvironment() {
             let isRestricted = false;
@@ -652,11 +742,11 @@
             renderMiniLeaderboard();
             renderLeaderboardTable();
 
-            // 2. Fetch remote with cache-busting timestamp
+            // 2. Fetch remote
             await fetchCloudRelayScores();
 
-            // 3. Periodic background sync every 8s
-            setInterval(fetchCloudRelayScores, 8000);
+            // 3. Background sync every 6 seconds
+            setInterval(fetchCloudRelayScores, 6000);
         }
 
         async function manualCloudSync() {
@@ -692,50 +782,47 @@
 
         async function fetchCloudRelayScores() {
             const badge = document.getElementById('cloud-status-badge');
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
+            let success = false;
 
-                // Anti-Cache Timestamp URL parameter
-                const cacheBustUrl = `${PRIMARY_RELAY}?t=${Date.now()}`;
-                const res = await fetch(cacheBustUrl, { 
-                    signal: controller.signal,
-                    headers: { 'Cache-Control': 'no-cache' }
-                });
-                clearTimeout(timeoutId);
+            for (const relay of CLOUD_RELAYS) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && typeof data === 'object') {
-                        mergeAndSortScores(data.input || [], data.mc || []);
+                    const cacheBustUrl = `${relay.get}?t=${Date.now()}`;
+                    const res = await fetch(cacheBustUrl, { 
+                        signal: controller.signal,
+                        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+                    });
+                    clearTimeout(timeoutId);
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && typeof data === 'object') {
+                            mergeAndSortScores(data.input || [], data.mc || []);
+                            success = true;
+                            break;
+                        }
                     }
-                    if (badge) {
-                        badge.className = "text-[10px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 cursor-pointer transition";
-                        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 雲端連線中 (點擊同步)`;
-                    }
+                } catch (e) {
+                    console.warn(`Relay ${relay.name} fetch bypass:`, e);
                 }
-            } catch (e) {
-                console.log("Cloud fetch retry:", e);
-                if (badge) {
+            }
+
+            if (badge) {
+                if (success) {
+                    badge.className = "text-[10px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 cursor-pointer transition";
+                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 雲端連線中 (診斷)`;
+                } else {
                     badge.className = "text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2.5 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 cursor-pointer transition";
-                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> 本機模式 (點擊重試)`;
+                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> 本機模式 (點擊診斷)`;
                 }
             }
         }
 
         async function saveCloudRelayScores(entry, mode) {
-            // CRITICAL FIX: Fetch latest scores FIRST before merging & uploading to prevent last-write-wins overwrite
-            try {
-                const res = await fetch(`${PRIMARY_RELAY}?t=${Date.now()}`);
-                if (res.ok) {
-                    const latestRemoteData = await res.json();
-                    if (latestRemoteData && typeof latestRemoteData === 'object') {
-                        mergeAndSortScores(latestRemoteData.input || [], latestRemoteData.mc || []);
-                    }
-                }
-            } catch (err) {
-                console.log("Pre-save cloud sync fetch skipped:", err);
-            }
+            // Pre-save fetch merge to avoid overwriting existing cloud data
+            await fetchCloudRelayScores();
 
             leaderboards[mode].push(entry);
             const sortFn = (a, b) => (b.correct !== a.correct) ? (b.correct - a.correct) : (b.score - a.score);
@@ -743,18 +830,23 @@
 
             saveLeaderboardToStorage();
 
-            try {
-                await fetch(SET_RELAY, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        input: leaderboards.input.slice(0, 100),
-                        mc: leaderboards.mc.slice(0, 100)
-                    })
-                });
-            } catch (e) {
-                console.log("Cloud relay save error:", e);
-            }
+            const payload = JSON.stringify({
+                input: leaderboards.input.slice(0, 100),
+                mc: leaderboards.mc.slice(0, 100)
+            });
+
+            // Parallel save to all configured cloud relays
+            CLOUD_RELAYS.forEach(async (relay) => {
+                try {
+                    await fetch(relay.set, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: payload
+                    });
+                } catch (e) {
+                    console.log(`Relay ${relay.name} save warning:`, e);
+                }
+            });
 
             renderMiniLeaderboard();
             renderLeaderboardTable();
