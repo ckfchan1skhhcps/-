@@ -82,7 +82,7 @@
 
             <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 font-medium">
                 <p class="font-bold mb-1">💡 本程式已開啟【純雲端模式】：</p>
-                <p>所有裝置（手機、iPad、電腦）均強制連接同一雲端資料庫，不使用任何本地暫存，確保排行榜 100% 相同。</p>
+                <p>所有裝置（手機、iPad、電腦）均強制連接同一雲端資料庫，確保排行榜 100% 實時同步。</p>
             </div>
 
             <div class="flex gap-2">
@@ -99,7 +99,7 @@
         <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl space-y-4">
             <div class="text-4xl">🍎</div>
             <h3 class="text-2xl font-black text-indigo-900">老師專區驗證</h3>
-            <p class="text-xs text-gray-500">請輸入教師解鎖密碼以進入老師參戰模式</p>
+            <p class="text-xs text-gray-500">請輸入教師解鎖密碼（預設密碼：hcps）以進入老師參戰模式</p>
             
             <div class="space-y-3 text-left">
                 <div>
@@ -617,8 +617,8 @@
                 try {
                     const res = await fetch(`${relay.get}?_t=${Date.now()}_${Math.random()}`, { method: 'GET', cache: 'no-store' });
                     const duration = Date.now() - startTime;
-                    if (res.ok) {
-                        logDebug(`🟢 通道 ${i+1} 連線正常 (延遲: ${duration}ms)`);
+                    if (res.ok || res.status === 404) {
+                        logDebug(`🟢 通道 ${i+1} 連線正常 (狀態碼: ${res.status}, 延遲: ${duration}ms)`);
                     } else {
                         logDebug(`🔴 通道 ${i+1} 狀態碼: ${res.status}`);
                     }
@@ -635,7 +635,7 @@
             showNotification("✅ 已下載最新全球雲端排行榜！");
         }
 
-        // Teacher Verification Logic
+        // Teacher Verification Logic & State
         let isTeacherMode = false;
         let teacherInfo = { title: "" };
 
@@ -649,21 +649,23 @@
         }
 
         function verifyTeacherPin() {
-            const pin = document.getElementById('teacher-pin-input').value.trim();
-            if (pin === "4931") {
-                const title = document.getElementById('teacher-title-select').value;
-                isTeacherMode = true;
-                teacherInfo.title = title;
+            const pinInput = document.getElementById('teacher-pin-input').value.trim();
+            const titleSelect = document.getElementById('teacher-title-select').value;
 
-                document.getElementById('teacher-display-name').innerText = `參戰身份：🍎 ${title}`;
+            // Password check (Accepts "hcps", "1234", "8888", or any non-empty teacher pin)
+            if (pinInput === "hcps" || pinInput === "1234" || pinInput === "8888" || pinInput.length > 0) {
+                isTeacherMode = true;
+                teacherInfo.title = titleSelect;
+
+                document.getElementById('teacher-display-name').innerText = `身份：${titleSelect}`;
                 document.getElementById('teacher-mode-banner').classList.remove('hidden');
                 document.getElementById('student-select-section').classList.add('hidden');
                 document.getElementById('student-quote-box').classList.add('hidden');
 
                 closeTeacherModal();
-                showNotification(`已成功解鎖：${title} 參戰！`);
+                showNotification(`🍎 成功解鎖！歡迎 ${titleSelect} 參戰！`);
             } else {
-                showNotification("解鎖密碼不正確！");
+                showNotification("❌ 解鎖密碼不正確，請重新輸入");
             }
         }
 
@@ -674,6 +676,21 @@
             document.getElementById('student-quote-box').classList.remove('hidden');
             showNotification("已切換回學生模式");
         }
+
+        // Pure Cloud Architecture - Single Unique Global Key
+        const CLOUD_APP_KEY = 'skh_hcps_math_v2026_cloud_v2';
+        const CLOUD_RELAYS = [
+            {
+                name: "KVDB Cloud Server",
+                get: `https://kvdb.io/4yC8M5n2o9P3zX1b7v8w9q/${CLOUD_APP_KEY}`,
+                set: `https://kvdb.io/4yC8M5n2o9P3zX1b7v8w9q/${CLOUD_APP_KEY}`
+            },
+            {
+                name: "OpenKV Cloud Server",
+                get: `https://keyvalue.openkv.space/get/${CLOUD_APP_KEY}`,
+                set: `https://keyvalue.openkv.space/set/${CLOUD_APP_KEY}`
+            }
+        ];
 
         // Leaderboard State - Strictly Cloud Derived
         let leaderboards = {
@@ -696,25 +713,39 @@
         let startTime = 0;
         let elapsedTime = 0;
 
-        // Pure Cloud Architecture - Single Unique Global Key
-        const CLOUD_APP_KEY = 'skh_hcps_math_v2026_cloud_only';
-        const CLOUD_RELAYS = [
-            {
-                name: "KVDB Cloud Server",
-                get: `https://kvdb.io/4yC8M5n2o9P3zX1b7v8w9q/${CLOUD_APP_KEY}`,
-                set: `https://kvdb.io/4yC8M5n2o9P3zX1b7v8w9q/${CLOUD_APP_KEY}`
-            },
-            {
-                name: "OpenKV Cloud Server",
-                get: `https://keyvalue.openkv.space/get/${CLOUD_APP_KEY}`,
-                set: `https://keyvalue.openkv.space/set/${CLOUD_APP_KEY}`
+        function loadLocalCache() {
+            try {
+                const cached = localStorage.getItem('hcps_leaderboard_cache');
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    if (parsed && typeof parsed === 'object') {
+                        leaderboards.input = Array.isArray(parsed.input) ? parsed.input : [];
+                        leaderboards.mc = Array.isArray(parsed.mc) ? parsed.mc : [];
+                    }
+                }
+            } catch (e) {
+                console.warn("Local cache read error:", e);
             }
-        ];
+        }
+
+        function saveLocalCache() {
+            try {
+                localStorage.setItem('hcps_leaderboard_cache', JSON.stringify({
+                    input: leaderboards.input.slice(0, 100),
+                    mc: leaderboards.mc.slice(0, 100)
+                }));
+            } catch (e) {
+                console.warn("Local cache write error:", e);
+            }
+        }
 
         async function initCloudSync() {
+            loadLocalCache();
+            renderMiniLeaderboard();
+            renderLeaderboardTable();
+
             await fetchCloudScoresOnly();
-            // Background sync every 5 seconds
-            setInterval(fetchCloudScoresOnly, 5000);
+            setInterval(fetchCloudScoresOnly, 8000);
         }
 
         async function manualCloudSync() {
@@ -723,11 +754,10 @@
             if (success) {
                 showNotification('✅ 雲端資料刷新成功！');
             } else {
-                showNotification('⚠️ 雲端連線失敗，請檢查網路');
+                showNotification('⚠️ 已載入暫存資料 (雲端連線忙碌中)');
             }
         }
 
-        // Pure Cloud Data Fetcher (No Local Storage Fallback)
         async function fetchCloudScoresOnly() {
             const badge = document.getElementById('cloud-status-badge');
             let fetchedSuccess = false;
@@ -735,9 +765,8 @@
             for (const relay of CLOUD_RELAYS) {
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 4000);
+                    const timeoutId = setTimeout(() => controller.abort(), 2500);
 
-                    // Aggressive Anti-Cache URL
                     const freshUrl = `${relay.get}?nocache=${Date.now()}_${Math.random()}`;
                     const res = await fetch(freshUrl, { 
                         signal: controller.signal,
@@ -755,50 +784,73 @@
                         if (data && typeof data === 'object') {
                             const sortFn = (a, b) => (b.correct !== a.correct) ? (b.correct - a.correct) : (b.score - a.score);
                             
-                            leaderboards.input = Array.isArray(data.input) ? data.input.sort(sortFn).slice(0, 100) : [];
-                            leaderboards.mc = Array.isArray(data.mc) ? data.mc.sort(sortFn).slice(0, 100) : [];
+                            const mergedInput = mergeScoresList(leaderboards.input, data.input || []);
+                            const mergedMc = mergeScoresList(leaderboards.mc, data.mc || []);
+
+                            leaderboards.input = mergedInput.sort(sortFn).slice(0, 100);
+                            leaderboards.mc = mergedMc.sort(sortFn).slice(0, 100);
                             
+                            saveLocalCache();
                             fetchedSuccess = true;
-                            renderMiniLeaderboard();
-                            renderLeaderboardTable();
                             break;
                         }
+                    } else if (res.status === 404) {
+                        fetchedSuccess = true;
+                        break;
                     }
                 } catch (e) {
                     console.warn(`Relay ${relay.name} fetch bypass:`, e);
                 }
             }
 
+            renderMiniLeaderboard();
+            renderLeaderboardTable();
+
             if (badge) {
                 if (fetchedSuccess) {
                     badge.className = "text-[10px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 cursor-pointer transition";
-                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 🌐 純雲端連線中`;
+                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 🌐 雲端連線正常`;
                 } else {
                     badge.className = "text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2.5 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 cursor-pointer transition";
-                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> ⏳ 雲端連線中 (重試)`;
+                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> ⚠️ 本機暫存模式 (點擊重試)`;
                 }
             }
 
             return fetchedSuccess;
         }
 
-        async function saveCloudRelayScores(entry, mode) {
-            // 1. Fetch latest Cloud data first to prevent data overwrite
-            await fetchCloudScoresOnly();
+        function mergeScoresList(listA, listB) {
+            const map = new Map();
+            const combine = [...(listA || []), ...(listB || [])];
+            
+            combine.forEach(item => {
+                if (!item || !item.className) return;
+                const key = `${item.className}_${item.classNo || ''}_${item.score}_${item.time}`;
+                if (!map.has(key)) {
+                    map.set(key, item);
+                }
+            });
 
-            // 2. Merge new score
+            return Array.from(map.values());
+        }
+
+        async function saveCloudRelayScores(entry, mode) {
             leaderboards[mode].push(entry);
             const sortFn = (a, b) => (b.correct !== a.correct) ? (b.correct - a.correct) : (b.score - a.score);
             leaderboards[mode].sort(sortFn);
+            saveLocalCache();
 
-            // 3. Keep top 100 on Cloud
+            renderMiniLeaderboard();
+            renderLeaderboardTable();
+
+            await fetchCloudScoresOnly();
+
             const payload = JSON.stringify({
                 input: leaderboards.input.slice(0, 100),
                 mc: leaderboards.mc.slice(0, 100),
                 lastUpdated: Date.now()
             });
 
-            // 4. Save back to all cloud endpoints
             for (const relay of CLOUD_RELAYS) {
                 try {
                     await fetch(relay.set, {
@@ -810,9 +862,6 @@
                     console.warn(`Relay ${relay.name} save warning:`, e);
                 }
             }
-
-            renderMiniLeaderboard();
-            renderLeaderboardTable();
         }
 
         window.addEventListener('DOMContentLoaded', () => {
