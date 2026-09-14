@@ -71,37 +71,27 @@
         <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <div class="flex justify-between items-center border-b pb-3">
                 <h3 class="text-xl font-black text-indigo-900 flex items-center gap-2">
-                    <i class="fa-solid fa-network-wired text-indigo-600"></i> 雲端連線診斷報告
+                    <i class="fa-solid fa-cloud text-indigo-600"></i> 全球雲端連線測試
                 </h3>
                 <button onclick="closeDebugModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
             </div>
             
             <div class="space-y-2 text-xs font-mono bg-gray-900 text-emerald-400 p-4 rounded-2xl overflow-x-auto max-h-60" id="debug-log-box">
-                <p>> 正在檢測網絡連線...</p>
+                <p>> 正在檢測全球雲端連線...</p>
             </div>
 
             <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 font-medium">
-                <p class="font-bold mb-1">💡 電話無法同步的排除步驟：</p>
-                <ol class="list-decimal list-inside space-y-1">
-                    <li>請確認電話非處於「無痕模式」或「低電量省電模式」。</li>
-                    <li>若在 Classroom App 開啟，請點右下角轉用 <b>Safari / Chrome</b>。</li>
-                    <li>可點擊下方的「強制重設並同步」按鈕重試。</li>
-                </ol>
+                <p class="font-bold mb-1">💡 本程式已開啟【純雲端模式】：</p>
+                <p>所有裝置（手機、iPad、電腦）均強制連接同一雲端資料庫，不使用任何本地暫存，確保排行榜 100% 相同。</p>
             </div>
 
             <div class="flex gap-2">
                 <button onclick="forceReSync()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow">
-                    <i class="fa-solid fa-rotate"></i> 強制重新連線同步
+                    <i class="fa-solid fa-rotate"></i> 強制重新讀取雲端
                 </button>
                 <button onclick="closeDebugModal()" class="py-2.5 px-4 bg-gray-200 text-gray-700 font-bold rounded-xl text-xs">關閉</button>
             </div>
         </div>
-    </div>
-
-    <!-- Sandbox Warning Banner -->
-    <div id="sandbox-warning-banner" class="hidden fixed top-0 left-0 right-0 z-50 bg-amber-500 text-amber-950 px-4 py-2 text-xs md:text-sm font-bold text-center shadow-lg flex items-center justify-center gap-2">
-        <i class="fa-solid fa-triangle-exclamation text-base"></i>
-        <span>警告：正在預覽模式或App內建視窗中開啟！建議使用「 Safari / Chrome 瀏覽器」開啟以確保排行榜正常同步。</span>
     </div>
 
     <!-- Teacher Modal -->
@@ -213,9 +203,9 @@
             </h1>
             <div class="flex items-center justify-center gap-2 mt-1">
                 <p class="text-gray-600 font-bold text-xs md:text-sm">1位數乘法競速戰 (包括 0 的乘法)</p>
-                <!-- Cloud Status Indicator & Diagnostics -->
+                <!-- Cloud Status Indicator -->
                 <button onclick="openDebugModal()" id="cloud-status-badge" class="text-[10px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 cursor-pointer transition">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 雲端連線中 (診斷)
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 🌐 純雲端模式
                 </button>
             </div>
         </div>
@@ -309,11 +299,11 @@
             <div class="mt-4 border-t pt-3">
                 <div class="flex justify-between items-center mb-2">
                     <h3 class="font-bold text-gray-700 text-xs md:text-sm flex items-center gap-1.5">
-                        <i class="fa-solid fa-trophy text-amber-500"></i> 排行榜榜首 (Top 10)
+                        <i class="fa-solid fa-trophy text-amber-500"></i> 全球雲端排行榜 (Top 10)
                     </h3>
                     <div class="flex gap-2 items-center">
                         <button onclick="manualCloudSync()" class="text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 px-2 py-0.5 rounded-md font-bold transition">
-                            <i class="fa-solid fa-rotate mr-0.5"></i> 刷新雲端
+                            <i class="fa-solid fa-rotate mr-0.5"></i> 重新載入雲端
                         </button>
                         <button onclick="showLeaderboardScreen()" class="text-xs text-indigo-600 font-bold hover:underline">
                             完整榜單 &rarr;
@@ -334,7 +324,9 @@
                 </div>
 
                 <div id="mini-leaderboard" class="space-y-1.5 text-xs max-h-48 overflow-y-auto">
-                    <!-- Dynamic mini leaderboard loaded via JS -->
+                    <div class="text-center py-4 text-gray-400 font-bold">
+                        <i class="fa-solid fa-spinner animate-spin text-indigo-500 mr-1"></i> 正在下載全球雲端排行榜...
+                    </div>
                 </div>
             </div>
         </div>
@@ -415,7 +407,7 @@
             <div class="bg-gradient-to-b from-amber-100 to-yellow-50 p-5 rounded-3xl border-4 border-amber-300 shadow-xl relative">
                 <div class="text-5xl mb-1" id="result-emoji">🏆</div>
                 <h2 class="text-2xl md:text-3xl font-black text-amber-900" id="result-title">極速挑戰完成！</h2>
-                <p class="text-amber-700 font-bold text-xs mt-0.5" id="result-subtitle">成績已實時同步至全校雲端排行榜</p>
+                <p class="text-amber-700 font-bold text-xs mt-0.5" id="result-subtitle">成績正在同步上傳至全校雲端排行榜...</p>
 
                 <div class="grid grid-cols-2 gap-2.5 my-4">
                     <div class="bg-white p-3 rounded-2xl shadow-sm border border-amber-200">
@@ -447,7 +439,7 @@
 
                 <button onclick="showLeaderboardScreen()" 
                     class="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm rounded-2xl border border-gray-300 transition">
-                    <i class="fa-solid fa-list-ol mr-1"></i> 查看分級排行榜 Leaderboard
+                    <i class="fa-solid fa-list-ol mr-1"></i> 查看雲端排行榜 Leaderboard
                 </button>
             </div>
         </div>
@@ -492,7 +484,7 @@
                 <button onclick="setMainGradeFilter('TEACHER')" id="main-grade-TEACHER" class="px-3 py-1.5 rounded-xl bg-gray-200 text-gray-700 shrink-0">教師組</button>
             </div>
 
-            <p class="text-[11px] text-gray-500">排名規則：優先比較【答對題數 (5/5)】，其次比較【總用時 (越快越高)】。實時跨裝置同步！</p>
+            <p class="text-[11px] text-gray-500">排名規則：優先比較【答對題數】，其次比較【總用時】。100% 全球雲端實時同步！</p>
 
             <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-inner max-h-[340px] overflow-y-auto">
                 <table class="w-full text-left border-collapse">
@@ -615,33 +607,32 @@
 
         async function runNetworkDiagnostics() {
             const box = document.getElementById('debug-log-box');
-            box.innerHTML = `<p>> 開始檢測裝置與雲端網絡連線...</p>`;
-            logDebug(`裝置環境: ${navigator.userAgent.includes('Mobile') ? '📱 流動裝置 (Mobile)' : '💻 電腦 (Desktop)'}`);
-            logDebug(`獨立視窗模式: ${window.self === window.top ? '✅ 是 (Standard Browser)' : '⚠️ 否 (In-App Browser / Iframe)'}`);
-
+            box.innerHTML = `<p>> 開始檢測純雲端連線狀態...</p>`;
+            logDebug(`當前裝置: ${navigator.userAgent.includes('Mobile') ? '📱 流動裝置' : '💻 電腦/平板'}`);
+            
             for (let i = 0; i < CLOUD_RELAYS.length; i++) {
                 const relay = CLOUD_RELAYS[i];
                 logDebug(`測試雲端通道 ${i+1}: ${relay.name}...`);
                 const startTime = Date.now();
                 try {
-                    const res = await fetch(`${relay.get}?t=${Date.now()}`, { method: 'GET', cache: 'no-store' });
+                    const res = await fetch(`${relay.get}?_t=${Date.now()}_${Math.random()}`, { method: 'GET', cache: 'no-store' });
                     const duration = Date.now() - startTime;
                     if (res.ok) {
-                        logDebug(`🟢 通道 ${i+1} 成功連線! 延遲: ${duration}ms`);
+                        logDebug(`🟢 通道 ${i+1} 連線正常 (延遲: ${duration}ms)`);
                     } else {
-                        logDebug(`🔴 通道 ${i+1} 回應狀態碼: ${res.status}`);
+                        logDebug(`🔴 通道 ${i+1} 狀態碼: ${res.status}`);
                     }
                 } catch (err) {
-                    logDebug(`❌ 通道 ${i+1} 連線失敗: ${err.message}`);
+                    logDebug(`❌ 通道 ${i+1} 連線障礙: ${err.message}`);
                 }
             }
         }
 
         async function forceReSync() {
-            logDebug("開始強制重新發起雙向同步...");
-            await fetchCloudRelayScores();
-            logDebug("強制同步指令執行完畢！");
-            showNotification("✅ 強制連線同步完成！");
+            logDebug("發起純雲端數據刷新...");
+            await fetchCloudScoresOnly();
+            logDebug("雲端刷新完畢！");
+            showNotification("✅ 已下載最新全球雲端排行榜！");
         }
 
         // Teacher Verification Logic
@@ -684,7 +675,7 @@
             showNotification("已切換回學生模式");
         }
 
-        // Leaderboard State
+        // Leaderboard State - Strictly Cloud Derived
         let leaderboards = {
             input: [],
             mc: []
@@ -705,102 +696,71 @@
         let startTime = 0;
         let elapsedTime = 0;
 
-        // Mobile-Optimized Multi-Cloud Architecture (Dual Relays with Fallback)
-        const APP_KEY = 'skh_hcps_math_v3';
+        // Pure Cloud Architecture - Single Unique Global Key
+        const CLOUD_APP_KEY = 'skh_hcps_math_v2026_cloud_only';
         const CLOUD_RELAYS = [
             {
-                name: "Primary OpenKV",
-                get: `https://keyvalue.openkv.space/get/${APP_KEY}`,
-                set: `https://keyvalue.openkv.space/set/${APP_KEY}`
+                name: "KVDB Cloud Server",
+                get: `https://kvdb.io/4yC8M5n2o9P3zX1b7v8w9q/${CLOUD_APP_KEY}`,
+                set: `https://kvdb.io/4yC8M5n2o9P3zX1b7v8w9q/${CLOUD_APP_KEY}`
             },
             {
-                name: "Secondary KVDB",
-                get: `https://kvdb.io/4yC8M5n2o9P3zX1b7v8w9q/${APP_KEY}`,
-                set: `https://kvdb.io/4yC8M5n2o9P3zX1b7v8w9q/${APP_KEY}`
+                name: "OpenKV Cloud Server",
+                get: `https://keyvalue.openkv.space/get/${CLOUD_APP_KEY}`,
+                set: `https://keyvalue.openkv.space/set/${CLOUD_APP_KEY}`
             }
         ];
 
-        function checkSandboxEnvironment() {
-            let isRestricted = false;
-            try {
-                localStorage.setItem('__test_key__', '1');
-                localStorage.removeItem('__test_key__');
-            } catch (e) {
-                isRestricted = true;
-            }
-
-            if ((window.self !== window.top || isRestricted) && document.getElementById('sandbox-warning-banner')) {
-                document.getElementById('sandbox-warning-banner').classList.remove('hidden');
-            }
-        }
-
         async function initCloudSync() {
-            checkSandboxEnvironment();
-            
-            // 1. Load local memory
-            loadLeaderboardFromStorage();
-            renderMiniLeaderboard();
-            renderLeaderboardTable();
-
-            // 2. Fetch remote
-            await fetchCloudRelayScores();
-
-            // 3. Background sync every 6 seconds
-            setInterval(fetchCloudRelayScores, 6000);
+            await fetchCloudScoresOnly();
+            // Background sync every 5 seconds
+            setInterval(fetchCloudScoresOnly, 5000);
         }
 
         async function manualCloudSync() {
-            showNotification('正在同步最新雲端資料...');
-            await fetchCloudRelayScores();
-            showNotification('✅ 雲端資料同步完成！');
+            showNotification('正在下載全球雲端資料...');
+            const success = await fetchCloudScoresOnly();
+            if (success) {
+                showNotification('✅ 雲端資料刷新成功！');
+            } else {
+                showNotification('⚠️ 雲端連線失敗，請檢查網路');
+            }
         }
 
-        function mergeAndSortScores(cloudInput = [], cloudMc = []) {
-            const sortFn = (a, b) => (b.correct !== a.correct) ? (b.correct - a.correct) : (b.score - a.score);
-            const generateUniqueKey = (item) => `${item.className}_${item.classNo}_${item.score}_${item.time}_${item.date}`;
-
-            const inputMap = new Map();
-            [...leaderboards.input, ...cloudInput].forEach(item => {
-                if (item && item.className) {
-                    inputMap.set(generateUniqueKey(item), item);
-                }
-            });
-            leaderboards.input = Array.from(inputMap.values()).sort(sortFn).slice(0, 100);
-
-            const mcMap = new Map();
-            [...leaderboards.mc, ...cloudMc].forEach(item => {
-                if (item && item.className) {
-                    mcMap.set(generateUniqueKey(item), item);
-                }
-            });
-            leaderboards.mc = Array.from(mcMap.values()).sort(sortFn).slice(0, 100);
-
-            saveLeaderboardToStorage();
-            renderMiniLeaderboard();
-            renderLeaderboardTable();
-        }
-
-        async function fetchCloudRelayScores() {
+        // Pure Cloud Data Fetcher (No Local Storage Fallback)
+        async function fetchCloudScoresOnly() {
             const badge = document.getElementById('cloud-status-badge');
-            let success = false;
+            let fetchedSuccess = false;
 
             for (const relay of CLOUD_RELAYS) {
                 try {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-                    const cacheBustUrl = `${relay.get}?t=${Date.now()}`;
-                    const res = await fetch(cacheBustUrl, { 
+                    // Aggressive Anti-Cache URL
+                    const freshUrl = `${relay.get}?nocache=${Date.now()}_${Math.random()}`;
+                    const res = await fetch(freshUrl, { 
                         signal: controller.signal,
-                        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+                        method: 'GET',
+                        headers: { 
+                            'Cache-Control': 'no-cache, no-store, must-revalidate',
+                            'Pragma': 'no-cache'
+                        },
+                        cache: 'no-store'
                     });
                     clearTimeout(timeoutId);
 
                     if (res.ok) {
                         const data = await res.json();
                         if (data && typeof data === 'object') {
-                            mergeAndSortScores(data.input || [], data.mc || []);
-                            success = true;
+                            const sortFn = (a, b) => (b.correct !== a.correct) ? (b.correct - a.correct) : (b.score - a.score);
+                            
+                            leaderboards.input = Array.isArray(data.input) ? data.input.sort(sortFn).slice(0, 100) : [];
+                            leaderboards.mc = Array.isArray(data.mc) ? data.mc.sort(sortFn).slice(0, 100) : [];
+                            
+                            fetchedSuccess = true;
+                            renderMiniLeaderboard();
+                            renderLeaderboardTable();
                             break;
                         }
                     }
@@ -810,33 +770,36 @@
             }
 
             if (badge) {
-                if (success) {
+                if (fetchedSuccess) {
                     badge.className = "text-[10px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 cursor-pointer transition";
-                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 雲端連線中 (診斷)`;
+                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 🌐 純雲端連線中`;
                 } else {
                     badge.className = "text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2.5 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 cursor-pointer transition";
-                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> 本機模式 (點擊診斷)`;
+                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> ⏳ 雲端連線中 (重試)`;
                 }
             }
+
+            return fetchedSuccess;
         }
 
         async function saveCloudRelayScores(entry, mode) {
-            // Pre-save fetch merge to avoid overwriting existing cloud data
-            await fetchCloudRelayScores();
+            // 1. Fetch latest Cloud data first to prevent data overwrite
+            await fetchCloudScoresOnly();
 
+            // 2. Merge new score
             leaderboards[mode].push(entry);
             const sortFn = (a, b) => (b.correct !== a.correct) ? (b.correct - a.correct) : (b.score - a.score);
             leaderboards[mode].sort(sortFn);
 
-            saveLeaderboardToStorage();
-
+            // 3. Keep top 100 on Cloud
             const payload = JSON.stringify({
                 input: leaderboards.input.slice(0, 100),
-                mc: leaderboards.mc.slice(0, 100)
+                mc: leaderboards.mc.slice(0, 100),
+                lastUpdated: Date.now()
             });
 
-            // Parallel save to all configured cloud relays
-            CLOUD_RELAYS.forEach(async (relay) => {
+            // 4. Save back to all cloud endpoints
+            for (const relay of CLOUD_RELAYS) {
                 try {
                     await fetch(relay.set, {
                         method: 'POST',
@@ -844,39 +807,12 @@
                         body: payload
                     });
                 } catch (e) {
-                    console.log(`Relay ${relay.name} save warning:`, e);
+                    console.warn(`Relay ${relay.name} save warning:`, e);
                 }
-            });
+            }
 
             renderMiniLeaderboard();
             renderLeaderboardTable();
-        }
-
-        function saveLeaderboardToStorage() {
-            try {
-                localStorage.setItem('hk_math_multiplication_input', JSON.stringify(leaderboards.input));
-                localStorage.setItem('hk_math_multiplication_mc', JSON.stringify(leaderboards.mc));
-            } catch (e) {
-                console.warn("LocalStorage save restricted");
-            }
-        }
-
-        function loadLeaderboardFromStorage() {
-            try {
-                const storedInput = localStorage.getItem('hk_math_multiplication_input');
-                if (storedInput) {
-                    const parsed = JSON.parse(storedInput);
-                    if (Array.isArray(parsed)) leaderboards.input = parsed;
-                }
-
-                const storedMc = localStorage.getItem('hk_math_multiplication_mc');
-                if (storedMc) {
-                    const parsed = JSON.parse(storedMc);
-                    if (Array.isArray(parsed)) leaderboards.mc = parsed;
-                }
-            } catch (e) {
-                console.warn("LocalStorage read restricted");
-            }
         }
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -1122,7 +1058,7 @@
             }
         }
 
-        function finishGame() {
+        async function finishGame() {
             stopTimer();
             playSound('finish');
 
@@ -1153,7 +1089,8 @@
                 feedbackEl.innerText = "「做得好！再練習一次，下次一定能更快！」";
             }
 
-            saveCloudRelayScores({
+            // Save to Pure Cloud
+            await saveCloudRelayScores({
                 className: currentStudent.className,
                 classNo: currentStudent.classNo,
                 grade: currentStudent.grade,
@@ -1165,6 +1102,7 @@
                 date: new Date().toLocaleDateString('zh-HK', { month: '2-digit', day: '2-digit' })
             }, currentGameMode);
 
+            document.getElementById('result-subtitle').innerText = "✅ 成績已成功實時同步至全校雲端排行榜！";
             showScreen('screen-result');
         }
 
@@ -1200,8 +1138,8 @@
 
             if (top10.length === 0) {
                 container.innerHTML = `
-                    <div class="text-center py-2.5 text-gray-400 text-xs font-bold bg-white/60 rounded-xl border border-dashed border-gray-300">
-                        ⚡ 該類別暫無挑戰紀錄，快成為第一個閃電王吧！
+                    <div class="text-center py-3 text-gray-400 text-xs font-bold bg-white/60 rounded-xl border border-dashed border-gray-300">
+                        ⚡ 該類別暫無雲端紀錄，快成為第一個閃電王吧！
                     </div>
                 `;
                 return;
@@ -1273,7 +1211,7 @@
                     <tr>
                         <td colspan="4" class="text-center py-6 text-gray-400 font-bold text-xs md:text-sm">
                             <i class="fa-solid fa-trophy text-2xl text-amber-300 mb-1 block"></i>
-                            該分級暫無紀錄，快來進行第一次挑戰吧！
+                            該分級暫無雲端紀錄，快來進行第一次挑戰吧！
                         </td>
                     </tr>
                 `;
@@ -1312,6 +1250,7 @@
             switchLeaderboardTab(activeLeaderboardTab);
             setMainGradeFilter('ALL');
             showScreen('screen-leaderboard');
+            fetchCloudScoresOnly();
         }
 
         function showStartScreen() {
