@@ -10,6 +10,8 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Canvas Confetti for victory animations -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -694,11 +696,12 @@
         let startTime = 0;
         let elapsedTime = 0;
 
-        // ===== 全校同步（已代為開好共用資料庫，電腦／iPhone 讀同一份）=====
-        const CLOUD_DOC_URL = 'https://extendsclass.com/api/json-storage/bin/fddecde';
+        const FORM_ACTION = 'https://docs.google.com/forms/d/e/1FAIpQLScJVRzyx9_XFNDwZCwK4iAhqDrAjnbc_cK5ZbTDhhEchJZ3RA/formResponse';
+        const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/13eHM_0moJPHJZV3E8EacgHqG2sn3_M0si1ec7RzEc10/export?format=csv&gid=611668668';
+        const SHEET_GVIZ_URL = 'https://docs.google.com/spreadsheets/d/13eHM_0moJPHJZV3E8EacgHqG2sn3_M0si1ec7RzEc10/gviz/tq?tqx=out:csv&gid=611668668';
 
         function isCloudConfigured() {
-            return !!CLOUD_DOC_URL;
+            return true;
         }
 
         function playerKey(item, mode) {
@@ -801,32 +804,88 @@
             loadLocalBoards();
             renderMiniLeaderboard();
             renderLeaderboardTable();
+            try {
+                window._lbChannel = new BroadcastChannel('skh_hcps_lb');
+                window._lbChannel.onmessage = (ev) => {
+                    if (ev && ev.data) applyBoards(ev.data, false);
+                };
+            } catch (e) {}
+            window.addEventListener('storage', (ev) => {
+                if (ev.key === LOCAL_BOARD_KEY && ev.newValue) {
+                    try { applyBoards(JSON.parse(ev.newValue), false); } catch (e) {}
+                }
+            });
             fetchCloudScoresOnly();
             setInterval(fetchCloudScoresOnly, 8000);
         }
 
         async function manualCloudSync() {
-            const success = await fetchCloudScoresOnly();
-            if (success) showNotification('✅ 排行榜已更新！');
+            const ok = await fetchCloudScoresOnly();
+            showNotification(ok ? '✅ 排行榜已更新！' : '成績已記錄。請將試算表設為「知道連結的人可檢視」。');
+        }
+
+        function parseCsv(text) {
+            const rows = [];
+            let row = [], cell = '', q = false;
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i], n = text[i + 1];
+                if (c === '"') {
+                    if (q && n === '"') { cell += '"'; i++; }
+                    else q = !q;
+                } else if (c === ',' && !q) { row.push(cell); cell = ''; }
+                else if ((c === '\n' || c === '\r') && !q) {
+                    if (c === '\r' && n === '\n') i++;
+                    row.push(cell); rows.push(row); row = []; cell = '';
+                } else cell += c;
+            }
+            if (cell || row.length) { row.push(cell); rows.push(row); }
+            return rows;
+        }
+
+        function rowsToBoards(rows) {
+            const input = [], mc = [];
+            if (!rows.length) return { input, mc };
+            const header = rows[0].map(h => String(h).trim());
+            const idx = (name) => header.indexOf(name);
+            const iMode = idx('模式'), iGrade = idx('年級'), iClass = idx('班別'), iNo = idx('班號');
+            const iTeacher = idx('是否老師'), iCorrect = idx('答對'), iTime = idx('用時秒'), iScore = idx('得分');
+            for (let r = 1; r < rows.length; r++) {
+                const line = rows[r];
+                if (!line || line.every(x => !String(x).trim())) continue;
+                const mode = String(line[iMode] || 'input').trim() === 'mc' ? 'mc' : 'input';
+                const item = {
+                    grade: String(line[iGrade] || '').trim(),
+                    className: String(line[iClass] || '').trim(),
+                    classNo: String(line[iNo] || '').trim(),
+                    isTeacher: String(line[iTeacher] || '').trim() === '是',
+                    correct: parseInt(line[iCorrect], 10) || 0,
+                    time: parseFloat(line[iTime]) || 0,
+                    score: parseInt(line[iScore], 10) || 0,
+                    mode,
+                    date: ''
+                };
+                if (!item.className && !item.isTeacher) continue;
+                (mode === 'mc' ? mc : input).push(item);
+            }
+            return { input, mc };
         }
 
         async function fetchCloudScoresOnly() {
-            try {
-                const res = await fetchWithTimeout(CLOUD_DOC_URL + '?t=' + Date.now(), { method: 'GET' }, 5000);
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                const data = await res.json();
-                leaderboards.input = mergeBoard(leaderboards.input, data.input);
-                leaderboards.mc = mergeBoard(leaderboards.mc, data.mc);
-                saveLocalBoards();
-                renderMiniLeaderboard();
-                renderLeaderboardTable();
-                return true;
-            } catch (e) {
-                console.warn('Cloud fetch failed:', e);
-                renderMiniLeaderboard();
-                renderLeaderboardTable();
-                return false;
+            const urls = [SHEET_CSV_URL + '&t=' + Date.now(), SHEET_GVIZ_URL + '&t=' + Date.now()];
+            for (const url of urls) {
+                try {
+                    const res = await fetchWithTimeout(url, { method: 'GET' }, 6000);
+                    if (!res.ok) continue;
+                    const text = await res.text();
+                    if (!text || text.includes('<html') || !text.includes('模式')) continue;
+                    const boards = rowsToBoards(parseCsv(text));
+                    applyBoards(boards, false);
+                    return true;
+                } catch (e) {}
             }
+            renderMiniLeaderboard();
+            renderLeaderboardTable();
+            return false;
         }
 
         function isBetter(newEntry, oldEntry) {
@@ -834,6 +893,17 @@
             if (newEntry.correct !== oldEntry.correct) return newEntry.correct > oldEntry.correct;
             if (newEntry.score !== oldEntry.score) return newEntry.score > oldEntry.score;
             return newEntry.time < oldEntry.time;
+        }
+
+        function applyBoards(data, broadcast) {
+            leaderboards.input = mergeBoard(leaderboards.input, data && data.input);
+            leaderboards.mc = mergeBoard(leaderboards.mc, data && data.mc);
+            saveLocalBoards();
+            renderMiniLeaderboard();
+            renderLeaderboardTable();
+            if (broadcast && window._lbChannel) {
+                try { window._lbChannel.postMessage({ input: leaderboards.input, mc: leaderboards.mc }); } catch (e) {}
+            }
         }
 
         async function saveCloudRelayScores(entry, mode) {
@@ -847,46 +917,28 @@
             }
             list.sort(sortScores);
             leaderboards[mode] = list;
-            renderMiniLeaderboard();
-            renderLeaderboardTable();
-
-            if (!isCloudConfigured()) {
-                showNotification('本地已記錄，但雲端未設定。');
-                return;
-            }
-
+            applyBoards(leaderboards, true);
             try {
-                await fetchCloudScoresOnly();
-                const latest = leaderboards[mode] || [];
-                const latestIdx = latest.findIndex(item => playerKey(item, mode) === key);
-                if (latestIdx >= 0) {
-                    if (isBetter(entry, latest[latestIdx])) latest[latestIdx] = entry;
-                } else {
-                    latest.push(entry);
-                }
-                latest.sort(sortScores);
-                leaderboards[mode] = latest;
-                const payload = {
-                    input: leaderboards.input.slice(0, 200),
-                    mc: leaderboards.mc.slice(0, 200),
-                    lastUpdated: Date.now()
-                };
-                const res = await fetch(CLOUD_DOC_URL, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                const body = new URLSearchParams({
+                    'entry.2045630513': mode || 'input',
+                    'entry.583252263': String(entry.grade || ''),
+                    'entry.1057815035': String(entry.className || ''),
+                    'entry.1831871663': String(entry.classNo || ''),
+                    'entry.36268485': entry.isTeacher ? '是' : '否',
+                    'entry.599552869': String(entry.correct || 0),
+                    'entry.2057624274': String(entry.time || 0),
+                    'entry.807879347': String(entry.score || 0)
                 });
-                if (!res.ok && res.status !== 200 && res.status !== 204) {
-                    throw new Error('HTTP ' + res.status);
-                }
-                setCloudBadge('ok', '🌐 全校同步中');
-                renderMiniLeaderboard();
-                renderLeaderboardTable();
+                await fetch(FORM_ACTION, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body
+                });
             } catch (e) {
-                console.warn('Cloud save failed:', e);
-                setCloudBadge('err', '⚠️ 上載失敗');
-                showNotification('成績已喺呢部裝置顯示，但未成功寫入全校榜，請檢查網絡後再玩一次。');
+                console.warn('Form submit failed', e);
             }
+            setTimeout(fetchCloudScoresOnly, 2500);
         }
 
         function findMyRecord(list, mode) {
